@@ -1,4 +1,4 @@
-# scholar-console
+# scholar-client
 
 scholars-ai 控制台（Next.js 15 App Router + Tailwind）：选题看板 / 文章审阅 / 数据面板。部署于 Vercel。架构见 [spec/SPEC-001](https://github.com/scholars-ai/spec/blob/main/specs/SPEC-001-architecture.md)。
 

@@ -9,7 +9,7 @@ const sections = [
 export default function Home() {
   return (
     <main className="mx-auto max-w-3xl p-8">
-      <h1 className="text-2xl font-bold">scholars-ai console</h1>
+      <h1 className="text-2xl font-bold">scholars-ai client</h1>
       <p className="mt-2 text-sm text-gray-500">
         选题 → 评分 → 写作 → 评分 → 发布 → 数据回流的控制台
       </p>
