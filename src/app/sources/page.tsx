@@ -49,6 +49,28 @@ export default function SourcesPage() {
     finally { setBusy(null); }
   }
 
+  async function updateInterval(source: Source, value: string) {
+    setBusy(source.id); setError(null);
+    try {
+      const intervalMinutes = value.trim() ? Number(value) : null;
+      const updated = await api.updateSource(source.id, {
+        fetchConfig: { ...source.fetchConfig, intervalMinutes },
+      });
+      setSources((current) => current.map((item) => item.id === source.id ? updated : item));
+    } catch (err) { setError(err instanceof Error ? err.message : "更新采集频率失败"); }
+    finally { setBusy(null); }
+  }
+
+  async function remove(source: Source) {
+    if (!window.confirm(`确认删除信源“${source.name}”？已采集素材会保留。`)) return;
+    setBusy(source.id); setError(null);
+    try {
+      await api.deleteSource(source.id);
+      setSources((current) => current.filter((item) => item.id !== source.id));
+    } catch (err) { setError(err instanceof Error ? err.message : "删除信源失败"); }
+    finally { setBusy(null); }
+  }
+
   async function ingest(event: FormEvent) {
     event.preventDefault(); if (!url.trim()) return;
     setIngesting(true); setError(null);
@@ -61,8 +83,8 @@ export default function SourcesPage() {
     event.preventDefault(); if (!newSource.name.trim()) return;
     setBusy("create"); setError(null);
     try {
-      const created = await api.createSource({ name: newSource.name.trim(), url: newSource.url.trim() || null, type: newSource.type, category: newSource.category, weight: 0.5, enabled: true });
-      setSources((current) => [created as Source, ...current]);
+      await api.createSource({ name: newSource.name.trim(), url: newSource.url.trim() || null, type: newSource.type, category: newSource.category, weight: 0.5, enabled: true });
+      await load();
       setNewSource({ name: "", url: "", type: "rss", category: "news" });
     } catch (err) { setError(err instanceof Error ? err.message : "新增信源失败"); }
     finally { setBusy(null); }
@@ -82,7 +104,7 @@ export default function SourcesPage() {
       </form>
     </div>
     <div className="panel table-wrap" style={{ marginTop: 16 }}>
-      {loading ? <div className="empty">正在加载信源…</div> : sources.length === 0 ? <div className="empty">暂无信源。</div> : <table className="data-table"><thead><tr><th>信源</th><th>类别</th><th>状态</th><th>频率覆盖</th><th>最近运行</th><th>健康</th><th>操作</th></tr></thead><tbody>{sources.map((source) => <tr key={source.id}><td><strong>{source.name}</strong><div className="meta-row">{source.url || "无 URL"}</div></td><td>{source.category}</td><td><span className={source.enabled ? "status status-approved" : "status status-rejected"}>{source.enabled ? "运行中" : "已暂停"}</span></td><td>{source.fetchConfig.intervalMinutes ? `${source.fetchConfig.intervalMinutes} 分钟` : "沿用全局"}</td><td>{date(source.health.lastRunAt)}</td><td>{source.health.consecutiveFailures > 0 ? <span className="status status-rejected">失败 {source.health.consecutiveFailures} 次</span> : <span className="status status-approved">正常</span>}</td><td><div className="card-actions"><button className="button" disabled={busy === source.id} onClick={() => void toggle(source)}>{source.enabled ? "暂停" : "启用"}</button><button className="button" disabled={busy === source.id || !source.enabled} onClick={() => void fetchSource(source)}>立即采集</button></div></td></tr>)}</tbody></table>}
+      {loading ? <div className="empty">正在加载信源…</div> : sources.length === 0 ? <div className="empty">暂无信源。</div> : <table className="data-table"><thead><tr><th>信源</th><th>类别</th><th>状态</th><th>频率覆盖</th><th>最近运行</th><th>健康</th><th>操作</th></tr></thead><tbody>{sources.map((source) => <tr key={source.id}><td><strong>{source.name}</strong><div className="meta-row">{source.url || "无 URL"}</div></td><td>{source.category}</td><td><span className={source.enabled ? "status status-approved" : "status status-rejected"}>{source.enabled ? "运行中" : "已暂停"}</span></td><td><div style={{ alignItems: "center", display: "flex", gap: 6 }}><input className="input" style={{ maxWidth: 100 }} type="number" min={5} max={10080} placeholder="全局" defaultValue={source.fetchConfig.intervalMinutes ?? ""} onBlur={(event) => { const value = event.target.value; const old = source.fetchConfig.intervalMinutes == null ? "" : String(source.fetchConfig.intervalMinutes); if (value !== old) void updateInterval(source, value); }} /><span>分钟</span></div></td><td>{date(source.health.lastRunAt)}</td><td>{source.health.consecutiveFailures > 0 ? <span className="status status-rejected">失败 {source.health.consecutiveFailures} 次</span> : <span className="status status-approved">正常</span>}</td><td><div className="card-actions"><button className="button" disabled={busy === source.id} onClick={() => void toggle(source)}>{source.enabled ? "暂停" : "启用"}</button><button className="button" disabled={busy === source.id || !source.enabled} onClick={() => void fetchSource(source)}>立即采集</button><button className="button danger" disabled={busy === source.id} onClick={() => void remove(source)}>删除</button></div></td></tr>)}</tbody></table>}
     </div>
   </main>;
 }
