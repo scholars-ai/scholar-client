@@ -22,6 +22,7 @@
     "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.23",
+    "eslint-plugin-react-hooks": "5.2.0",
     "@eslint/eslintrc": "^3"
   },
   "packageManager": "pnpm@10.32.0"

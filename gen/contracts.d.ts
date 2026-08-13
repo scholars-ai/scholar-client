@@ -67,11 +67,33 @@ export type InsightStatus = "candidate" | "active" | "retired";
  */
 export type AgentRunStatus = "running" | "succeeded" | "failed";
 /**
+ * material=能拿到原文，可作写作素材；signal=只有二手摘要，仅供发现（SPEC-003 §2.1）
+ *
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "SourceRole".
+ */
+export type SourceRole = "material" | "signal";
+/**
+ * rss_description=RSS 自带正文足够；fetch_page=需抓原文页（trafilatura）
+ *
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "FullTextStrategy".
+ */
+export type FullTextStrategy = "rss_description" | "fetch_page";
+/**
  * This interface was referenced by `ScholarsContracts`'s JSON-Schema
  * via the `definition` "TopicEvaluation".
  */
 export type TopicEvaluation = EvaluationCore & {
   topicId: string;
+  /**
+   * 评分时生效的 weight_sets.version，用于历史回放
+   */
+  weightVersion?: number | null;
+  /**
+   * 触发一票否决的维度；没有 veto 时为空
+   */
+  vetoedDimension?: string | null;
   [k: string]: unknown;
 };
 /**
@@ -106,9 +128,30 @@ export interface Source {
    */
   weight: number;
   enabled: boolean;
-  fetchConfig: {
-    [k: string]: unknown;
-  };
+  fetchConfig: SourceFetchConfig;
+}
+/**
+ * 单个信源的采集配置（SPEC-008 §3.1）。intervalMinutes 为空表示沿用全局默认；不为空即覆盖全局。additionalProperties 保持开放以便加源专属开关而不破契约。
+ *
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "SourceFetchConfig".
+ */
+export interface SourceFetchConfig {
+  role?: SourceRole;
+  fullText?: FullTextStrategy;
+  /**
+   * 单次采集条目上限。arXiv 类源单次返回数百条，必须限量
+   */
+  maxItems?: number;
+  /**
+   * 早于此天数的条目直接丢弃且不做 embedding（省额度）
+   */
+  maxAgeDays?: number;
+  /**
+   * 覆盖全局采集间隔；null/缺省=沿用全局默认（SPEC-008 §3.1）
+   */
+  intervalMinutes?: number | null;
+  [k: string]: unknown;
 }
 /**
  * 原始采集条目
@@ -365,6 +408,14 @@ export interface ArticleEvaluateJob {
  */
 export interface SourceFetchJob {
   sourceId: string;
+  /**
+   * 手动投喂时只抓取这一条 URL；普通 source_fetch 不传
+   */
+  url?: string | null;
+  /**
+   * 手动投喂备注，供留痕使用
+   */
+  note?: string | null;
 }
 /**
  * queue: topic_scout（聚合 status=new 的素材为选题，SPEC-003 §4）
@@ -395,6 +446,152 @@ export interface JobResult {
   agentRunId: string;
   entityIds: string[];
   langfuseTraceId: string | null;
+}
+/**
+ * 全局调度设置（SPEC-008 §3.1）。存 DB、由 client 修改；DEFAULT_* 环境变量只用于首次 seed，运行时真相只在 DB。
+ *
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "SchedulerSettings".
+ */
+export interface SchedulerSettings {
+  sourceFetch: SourceFetchSchedule;
+  topicScout: TopicScoutSchedule;
+  topicEvaluate: TopicEvaluateSchedule;
+}
+/**
+ * 采集调度：全局默认间隔，可被 sources.fetchConfig.intervalMinutes 逐源覆盖
+ *
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "SourceFetchSchedule".
+ */
+export interface SourceFetchSchedule {
+  enabled: boolean;
+  /**
+   * 下限 5 分钟：防止误配成高频轮询触发上游限流（RSSHub / X 尤其敏感）
+   */
+  defaultIntervalMinutes: number;
+}
+/**
+ * 选题聚合调度：按每日固定时刻触发
+ *
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "TopicScoutSchedule".
+ */
+export interface TopicScoutSchedule {
+  enabled: boolean;
+  /**
+   * 每日执行时刻（HH:MM，24 小时制）。client 用表单生成，不让用户手写 cron 表达式
+   *
+   * @minItems 1
+   * @maxItems 24
+   */
+  times: [string, ...string[]];
+  /**
+   * IANA 时区名，如 Asia/Shanghai
+   */
+  timezone: string;
+  /**
+   * 新素材不足此数则跳过本次运行并留痕（避免为几条素材烧一次 LLM）
+   */
+  minNewItems: number;
+}
+/**
+ * 评分调度：**事件驱动**，candidate 产生即投递，不设固定时刻（SPEC-008 §3.1 纪律 2）
+ *
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "TopicEvaluateSchedule".
+ */
+export interface TopicEvaluateSchedule {
+  enabled: boolean;
+  maxConcurrency: number;
+}
+/**
+ * 信源采集健康状态（client 信源管理页展示；连续失败需告警）
+ *
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "SourceHealth".
+ */
+export interface SourceHealth {
+  sourceId: string;
+  lastRunAt: string | null;
+  lastSuccessAt: string | null;
+  consecutiveFailures: number;
+  lastError: string | null;
+  nextRunAt: string | null;
+}
+/**
+ * TopicJudge 的结构化输出契约（供 runtime.complete_structured 校验）。**维度 key 必须与 rubrics/topic.v1.yaml 完全一致**——rubric 是唯一事实来源，此处不得另立一套。totalScore 由代码按生效权重重算，不信任模型自报（SPEC-004 §1.2）。
+ *
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "TopicJudgeOutput".
+ */
+export interface TopicJudgeOutput {
+  dimensionScores: {
+    timeliness: DimensionScore;
+    audience_value: DimensionScore;
+    platform_fit: DimensionScore;
+    differentiation: DimensionScore;
+    material_richness: DimensionScore;
+    history_signal: DimensionScore;
+  };
+  /**
+   * 人可读的总体评审理由：评分不可信时人要能一眼看出是 rubric 问题还是模型问题（SPEC-004 §1.5）
+   */
+  rationale: string;
+  /**
+   * Judge 认为该选题更适合的平台（可与 TopicScout 的建议不同）
+   */
+  suggestedPlatforms?: Platform[];
+}
+/**
+ * 单维度评分：分数 + 该维度的具体理由（强制逐维给理由，抑制笼统打分）
+ *
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "DimensionScore".
+ */
+export interface DimensionScore {
+  score: number;
+  reason: string;
+}
+/**
+ * TopicScout 的结构化输出契约：一簇素材 → 1–3 个选题角度（SPEC-003 §4）
+ *
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "TopicScoutOutput".
+ */
+export interface TopicScoutOutput {
+  /**
+   * @minItems 0
+   * @maxItems 3
+   */
+  topics: [] | [TopicDraft] | [TopicDraft, TopicDraft] | [TopicDraft, TopicDraft, TopicDraft];
+  /**
+   * 本簇未产出任何选题时的原因（留痕，便于调 prompt）
+   */
+  discardReason?: string;
+}
+/**
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "TopicDraft".
+ */
+export interface TopicDraft {
+  title: string;
+  /**
+   * 切入角度：同一事件对小红书和知乎的写法角度可能完全不同
+   */
+  angle: string;
+  /**
+   * 选题简介 + 素材要点
+   */
+  summary: string;
+  /**
+   * @minItems 1
+   */
+  rawItemIds: [string, ...string[]];
+  /**
+   * @minItems 1
+   */
+  targetPlatforms: [Platform, ...Platform[]];
 }
 /**
  * 锚定样例：抑制 LLM 评分中心化（SPEC-004 §1.3）

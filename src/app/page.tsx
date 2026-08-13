@@ -8,20 +8,17 @@ const sections = [
 
 export default function Home() {
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="text-2xl font-bold">scholars-ai client</h1>
-      <p className="mt-2 text-sm text-gray-500">
-        选题 → 评分 → 写作 → 评分 → 发布 → 数据回流的控制台
-      </p>
-      <div className="mt-8 grid gap-4">
+    <main className="page">
+      <div className="page-heading"><div><div className="eyebrow">SCHOLARS AI / CONTROL ROOM</div><h1>把信号变成<br />可写的选题。</h1><p className="lede">M1 选题闭环控制台：采集、聚合、评分、人工确认。每次 LLM 环节都可从 Langfuse 追溯。</p></div></div>
+      <div className="topic-grid">
         {sections.map((s) => (
           <Link
             key={s.href}
             href={s.href}
-            className="rounded-lg border p-4 hover:bg-gray-50 dark:hover:bg-gray-900"
+            className="topic-card panel"
           >
-            <div className="font-medium">{s.title}</div>
-            <div className="mt-1 text-sm text-gray-500">{s.desc}</div>
+            <h2>{s.title}</h2>
+            <p>{s.desc}</p>
           </Link>
         ))}
       </div>
