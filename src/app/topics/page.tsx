@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { components } from "../../../gen/core-api";
+import type { components } from "@scholars-ai/contracts/core-api";
 import { api } from "../../lib/api";
 
 type Topic = components["schemas"]["Topic"];

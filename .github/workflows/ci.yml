@@ -14,20 +14,11 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: scholar-client
-      - name: Checkout shared contracts
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: scholars-ai/scholar-shared
-          ref: ${{ vars.SCHOLAR_SHARED_REF || 'main' }}
-          path: scholar-shared
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       - name: Enable pnpm via corepack
         run: corepack enable
-      - name: Shared TypeScript contracts must match
-        run: ./scripts/check-contracts.sh ../scholar-shared
-        working-directory: scholar-client
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: scholar-client

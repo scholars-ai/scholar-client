@@ -7,8 +7,6 @@ scholars-ai 控制台（Next.js 15 App Router + Tailwind）：选题看板 / 文
 ```
 src/app/            页面：/（导航）/topics（M1）/articles（M2）/metrics（M3）
 src/lib/api.ts      core API 类型化 client（类型来自 shared 的 codegen 产物）
-gen/                scholar-shared gen/ts 的暂存副本；CI 会跨仓库逐字节校验
-scripts/             本地/CI 的契约一致性检查
 ```
 
 ## 开发
@@ -21,15 +19,8 @@ pnpm dev
 
 shadcn/ui 与 TanStack Query 随 M1 选题看板一起引入（骨架阶段不预装）。
 
-## 契约同步
+## 契约版本
 
-在六仓并列检出的开发目录中，同步 shared 生成物后检查：
+Client 通过 `@scholars-ai/contracts` 使用 Shared 发布的固定版本类型包。依赖指向公开 GitHub Release tarball，因此本地、CI 和 Vercel 都不需要额外 package token。
 
-```bash
-cp ../scholar-shared/gen/ts/*.d.ts gen/
-./scripts/check-contracts.sh ../scholar-shared
-```
-
-CI 会独立检出 `scholars-ai/scholar-shared` 并执行同一检查。跨仓库联调分支可以通过仓库变量 `SCHOLAR_SHARED_REF` 指向 shared 的对应分支；默认检查 `main`。
-
-`scholar-shared/gen/ts/package.json` 已定义版本化类型包元数据。等组织确认 GitHub Packages 的发布和权限策略后，client 可直接依赖 `@scholars-ai/contracts`，届时删除 `gen/` 暂存副本和复制步骤。
+升级契约时，先在 `scholar-shared` 发布新的 `contracts-vX.Y.Z` Release，再更新 `package.json` 中的 URL 并运行 `pnpm install`。固定版本让 Shared 的后续提交不会无意间改变 Client 的构建输入。

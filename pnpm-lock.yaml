@@ -21,6 +21,9 @@ importers:
       '@eslint/eslintrc':
         specifier: ^3
         version: 3.3.6
+      '@scholars-ai/contracts':
+        specifier: https://github.com/scholars-ai/scholar-shared/releases/download/contracts-v0.2.0/scholars-ai-contracts-0.2.0.tgz
+        version: https://github.com/scholars-ai/scholar-shared/releases/download/contracts-v0.2.0/scholars-ai-contracts-0.2.0.tgz
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.3
@@ -380,6 +383,10 @@ packages:
 
   '@rushstack/eslint-patch@1.16.1':
     resolution: {integrity: sha512-TvZbIpeKqGQQ7X0zSCvPH9riMSFQFSggnfBjFZ1mEoILW+UuXCKwOoPcgjMwiUtRqFZ8jWhPJc4um14vC6I4ag==}
+
+  '@scholars-ai/contracts@https://github.com/scholars-ai/scholar-shared/releases/download/contracts-v0.2.0/scholars-ai-contracts-0.2.0.tgz':
+    resolution: {integrity: sha512-ziO119iiFbO2ge1pseBBQFMmX3MXSx3kpP901dvpxff0OO6DWhXobvdUm4+ikTvdYoIC41KzwQqJWZ0uGvWgZw==, tarball: https://github.com/scholars-ai/scholar-shared/releases/download/contracts-v0.2.0/scholars-ai-contracts-0.2.0.tgz}
+    version: 0.2.0
 
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
@@ -2110,6 +2117,8 @@ snapshots:
   '@rtsao/scc@1.1.0': {}
 
   '@rushstack/eslint-patch@1.16.1': {}
+
+  '@scholars-ai/contracts@https://github.com/scholars-ai/scholar-shared/releases/download/contracts-v0.2.0/scholars-ai-contracts-0.2.0.tgz': {}
 
   '@swc/helpers@0.5.15':
     dependencies:

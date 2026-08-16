@@ -1,7 +1,5 @@
-// core API 的类型化 client：类型来自 scholar-shared 的 codegen 产物（gen/core-api.d.ts）。
-// M0 先手动同步类型文件；M1 起在 CI 中校验与 shared 的一致性。
-import type { paths } from "../../gen/core-api";
-import type { components } from "../../gen/core-api";
+// core API 的类型化 client：类型来自 scholar-shared 发布的版本化契约包。
+import type { components, paths } from "@scholars-ai/contracts/core-api";
 
 const BASE = process.env.NEXT_PUBLIC_CORE_API_URL ?? "http://localhost:8080/api";
 

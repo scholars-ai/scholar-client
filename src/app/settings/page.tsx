@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import type { components } from "../../../gen/core-api";
+import type { components } from "@scholars-ai/contracts/core-api";
 import { api } from "../../lib/api";
 
 type Settings = components["schemas"]["SchedulerSettings"];
