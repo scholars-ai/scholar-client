@@ -14,6 +14,14 @@ type SourcePatch = components["schemas"]["SourcePatch"];
 type SchedulerSettings = components["schemas"]["SchedulerSettings"];
 type SchedulerSettingsPatch = components["schemas"]["SchedulerSettingsPatch"];
 type JobAccepted = components["schemas"]["JobAccepted"];
+type ArticleList = components["schemas"]["ArticleList"];
+type Article = components["schemas"]["Article"];
+type ArticleDetail = components["schemas"]["ArticleDetail"];
+type ArticleEvaluation = components["schemas"]["ArticleEvaluation"];
+type Publication = components["schemas"]["Publication"];
+type ArticleStatus = components["schemas"]["ArticleStatus"];
+type Platform = components["schemas"]["Platform"];
+type CreatePublicationRequest = components["schemas"]["CreatePublicationRequest"];
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -64,4 +72,27 @@ export const api = {
       body: JSON.stringify(patch),
     }),
   triggerTopicScout: () => request<JobAccepted>(`/v1/scout/run`, { method: "POST" }),
+  listArticles: (filters?: { status?: ArticleStatus; platform?: Platform; topicId?: string }) => {
+    const query = new URLSearchParams();
+    if (filters?.status) query.set("status", filters.status);
+    if (filters?.platform) query.set("platform", filters.platform);
+    if (filters?.topicId) query.set("topicId", filters.topicId);
+    const suffix = query.size ? `?${query.toString()}` : "";
+    return request<ArticleList>(`/v1/articles${suffix}`);
+  },
+  getArticle: (id: string) => request<ArticleDetail>(`/v1/articles/${id}`),
+  listArticleEvaluations: (id: string) =>
+    request<ArticleEvaluation[]>(`/v1/articles/${id}/evaluations`),
+  approveArticle: (id: string) =>
+    request<Article>(`/v1/articles/${id}/approve`, { method: "POST" }),
+  rejectArticle: (id: string, reason?: string) =>
+    request<Article>(`/v1/articles/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify(reason ? { reason } : {}),
+    }),
+  createPublication: (id: string, input: CreatePublicationRequest) =>
+    request<Publication>(`/v1/articles/${id}/publications`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
 };

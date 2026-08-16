@@ -22,8 +22,8 @@ importers:
         specifier: ^3
         version: 3.3.6
       '@scholars-ai/contracts':
-        specifier: 0.3.1
-        version: 0.3.1
+        specifier: 0.4.0
+        version: 0.4.0
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.3
@@ -384,8 +384,8 @@ packages:
   '@rushstack/eslint-patch@1.16.1':
     resolution: {integrity: sha512-TvZbIpeKqGQQ7X0zSCvPH9riMSFQFSggnfBjFZ1mEoILW+UuXCKwOoPcgjMwiUtRqFZ8jWhPJc4um14vC6I4ag==}
 
-  '@scholars-ai/contracts@0.3.1':
-    resolution: {integrity: sha512-qIRNP9KhEVOwg67e24Jj/PXz4mw81TpB+NV29Bw/AFUks9+iXxV6O8mJRBHnQmVGSHlU+FgAJrH+FvNpcnVnhg==}
+  '@scholars-ai/contracts@0.4.0':
+    resolution: {integrity: sha512-URMNAFACW0wlqEYNm0uFAK/vX47G6jqUvuRGO1tOuWiIp4C8aN/2AopuArOXn+bih+wfCwY8H8Cd8aAT6Sf1DA==}
 
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
@@ -2117,7 +2117,7 @@ snapshots:
 
   '@rushstack/eslint-patch@1.16.1': {}
 
-  '@scholars-ai/contracts@0.3.1': {}
+  '@scholars-ai/contracts@0.4.0': {}
 
   '@swc/helpers@0.5.15':
     dependencies:
