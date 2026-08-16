@@ -353,12 +353,29 @@ export interface AgentRun {
   status: AgentRunStatus;
 }
 /**
+ * 跨队列传播的可选遥测元数据。旧消息可以不包含 _meta；Consumer 缺失时创建新的 root trace。
+ *
+ * This interface was referenced by `ScholarsContracts`'s JSON-Schema
+ * via the `definition` "JobTelemetryMeta".
+ */
+export interface JobTelemetryMeta {
+  jobId: string;
+  correlationId: string;
+  parentJobId?: string | null;
+  traceparent?: string | null;
+  tracestate?: string | null;
+  baggage?: string | null;
+  enqueuedAt: string;
+  triggerType: "api" | "scheduler" | "harvester" | "worker";
+}
+/**
  * queue: topic_evaluate（SPEC-001 §3。队列名注册表见 queues.json）
  *
  * This interface was referenced by `ScholarsContracts`'s JSON-Schema
  * via the `definition` "TopicEvaluateJob".
  */
 export interface TopicEvaluateJob {
+  _meta?: JobTelemetryMeta;
   topicId: string;
   /**
    * 缺省用当前生效版本
@@ -386,6 +403,7 @@ export interface RewriteContext {
  * via the `definition` "ArticleWriteJob".
  */
 export interface ArticleWriteJob {
+  _meta?: JobTelemetryMeta;
   topicId: string;
   platform: Platform;
   rewrite?: RewriteContext;
@@ -397,6 +415,7 @@ export interface ArticleWriteJob {
  * via the `definition` "ArticleEvaluateJob".
  */
 export interface ArticleEvaluateJob {
+  _meta?: JobTelemetryMeta;
   articleId: string;
   rubricVersion?: string;
 }
@@ -407,6 +426,7 @@ export interface ArticleEvaluateJob {
  * via the `definition` "SourceFetchJob".
  */
 export interface SourceFetchJob {
+  _meta?: JobTelemetryMeta;
   sourceId: string;
   /**
    * 手动投喂时只抓取这一条 URL；普通 source_fetch 不传
@@ -418,13 +438,20 @@ export interface SourceFetchJob {
   note?: string | null;
 }
 /**
- * queue: topic_scout（聚合 status=new 的素材为选题，SPEC-003 §4）
+ * queue: topic_scout（聚合 status=new 的素材为选题，SPEC-003 §4；rawItemIds 用于手动投喂定向处理）
  *
  * This interface was referenced by `ScholarsContracts`'s JSON-Schema
  * via the `definition` "TopicScoutJob".
  */
 export interface TopicScoutJob {
+  _meta?: JobTelemetryMeta;
   maxTopics?: number;
+  /**
+   * 仅处理指定的 new 素材；手动投喂链路使用
+   *
+   * @minItems 1
+   */
+  rawItemIds?: [string, ...string[]];
 }
 /**
  * queue: memory_reflect（SPEC-006 §4；periodStart 含、periodEnd 不含）
@@ -433,6 +460,7 @@ export interface TopicScoutJob {
  * via the `definition` "MemoryReflectJob".
  */
 export interface MemoryReflectJob {
+  _meta?: JobTelemetryMeta;
   periodStart: string;
   periodEnd: string;
 }
