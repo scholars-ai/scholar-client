@@ -22,6 +22,17 @@ type Publication = components["schemas"]["Publication"];
 type ArticleStatus = components["schemas"]["ArticleStatus"];
 type Platform = components["schemas"]["Platform"];
 type CreatePublicationRequest = components["schemas"]["CreatePublicationRequest"];
+type PublicationPerformanceList = components["schemas"]["PublicationPerformanceList"];
+type MetricSnapshot = components["schemas"]["MetricSnapshot"];
+type CreateMetricSnapshotRequest = components["schemas"]["CreateMetricSnapshotRequest"];
+type ImportMetricSnapshotsRequest = components["schemas"]["ImportMetricSnapshotsRequest"];
+type ImportMetricSnapshotsResult = components["schemas"]["ImportMetricSnapshotsResult"];
+type PerformanceDashboard = components["schemas"]["PerformanceDashboard"];
+type Insight = components["schemas"]["Insight"];
+type InsightKind = components["schemas"]["InsightKind"];
+type InsightStatus = components["schemas"]["InsightStatus"];
+type WeeklyReport = components["schemas"]["WeeklyReport"];
+type TriggerMemoryReflectRequest = components["schemas"]["TriggerMemoryReflectRequest"];
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -92,6 +103,51 @@ export const api = {
     }),
   createPublication: (id: string, input: CreatePublicationRequest) =>
     request<Publication>(`/v1/articles/${id}/publications`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  listPublications: (filters?: { platform?: Platform; remindersOnly?: boolean }) => {
+    const query = new URLSearchParams();
+    if (filters?.platform) query.set("platform", filters.platform);
+    if (filters?.remindersOnly) query.set("remindersOnly", "true");
+    const suffix = query.size ? `?${query.toString()}` : "";
+    return request<PublicationPerformanceList>(`/v1/publications${suffix}`);
+  },
+  listMetricSnapshots: (publicationId: string) =>
+    request<MetricSnapshot[]>(`/v1/publications/${publicationId}/metrics`),
+  createMetricSnapshot: (publicationId: string, input: CreateMetricSnapshotRequest) =>
+    request<MetricSnapshot>(`/v1/publications/${publicationId}/metrics`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  importMetricSnapshots: (input: ImportMetricSnapshotsRequest) =>
+    request<ImportMetricSnapshotsResult>(`/v1/metrics/import`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  getPerformanceDashboard: (filters?: { platform?: Platform; days?: number }) => {
+    const query = new URLSearchParams();
+    if (filters?.platform) query.set("platform", filters.platform);
+    if (filters?.days) query.set("days", String(filters.days));
+    const suffix = query.size ? `?${query.toString()}` : "";
+    return request<PerformanceDashboard>(`/v1/performance/dashboard${suffix}`);
+  },
+  listInsights: (filters?: { kind?: InsightKind; status?: InsightStatus; platform?: Platform }) => {
+    const query = new URLSearchParams();
+    if (filters?.kind) query.set("kind", filters.kind);
+    if (filters?.status) query.set("status", filters.status);
+    if (filters?.platform) query.set("platform", filters.platform);
+    const suffix = query.size ? `?${query.toString()}` : "";
+    return request<Insight[]>(`/v1/insights${suffix}`);
+  },
+  updateInsight: (id: string, status: "active" | "retired") =>
+    request<Insight>(`/v1/insights/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+  listWeeklyReports: () => request<WeeklyReport[]>(`/v1/reports/weekly`),
+  triggerMemoryReflect: (input: TriggerMemoryReflectRequest = {}) =>
+    request<JobAccepted>(`/v1/reflections/run`, {
       method: "POST",
       body: JSON.stringify(input),
     }),

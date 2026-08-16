@@ -34,10 +34,11 @@ export default function RootLayout({
             <nav className="nav-links" aria-label="主导航">
               <Link href="/topics">选题看板</Link>
               <Link href="/articles">文章审阅</Link>
+              <Link href="/metrics">数据回流</Link>
               <Link href="/sources">信源</Link>
               <Link href="/settings">调度设置</Link>
             </nav>
-            <span className="env-pill">M2 · CONTROL ROOM</span>
+            <span className="env-pill">M3 · FEEDBACK LOOP</span>
           </header>
           {children}
         </div>
