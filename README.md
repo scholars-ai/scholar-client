@@ -21,6 +21,6 @@ shadcn/ui 与 TanStack Query 随 M1 选题看板一起引入（骨架阶段不�
 
 ## 契约版本
 
-Client 通过 `@scholars-ai/contracts` 使用 Shared 发布的固定版本类型包。依赖指向公开 GitHub Release tarball，因此本地、CI 和 Vercel 都不需要额外 package token。
+Client 通过 npmjs.com 上的 `@scholars-ai/contracts` 使用 Shared 发布的固定版本类型包。它是公开包，因此本地、CI 和 Vercel 都不需要 package token；发布端通过 npm Trusted Publishing/OIDC 鉴权，不保存长期 npm token。
 
-升级契约时，先在 `scholar-shared` 发布新的 `contracts-vX.Y.Z` Release，再更新 `package.json` 中的 URL 并运行 `pnpm install`。固定版本让 Shared 的后续提交不会无意间改变 Client 的构建输入。
+升级契约时，先在 `scholar-shared` 更新版本并推送 `contracts-vX.Y.Z` tag，再更新 `package.json` 中的 npm 版本并运行 `pnpm install`。固定版本让 Shared 的后续提交不会无意间改变 Client 的构建输入。

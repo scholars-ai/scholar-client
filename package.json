@@ -14,7 +14,7 @@
     "next": "15.5.23"
   },
   "devDependencies": {
-    "@scholars-ai/contracts": "https://github.com/scholars-ai/scholar-shared/releases/download/contracts-v0.2.0/scholars-ai-contracts-0.2.0.tgz",
+    "@scholars-ai/contracts": "0.3.1",
     "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^19",
