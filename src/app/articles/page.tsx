@@ -288,8 +288,7 @@ export default function ArticlesPage() {
           {loading && <div className="empty">正在读取文章…</div>}
           {!loading && items.length === 0 && <div className="empty">当前筛选没有文章。</div>}
           {items.map((item) => (
-            <Button
-              variant="ghost"
+            <button
               type="button"
               className={`article-list-item ${selectedId === item.article.id ? "selected" : ""}`}
               key={item.article.id}
@@ -306,7 +305,7 @@ export default function ArticlesPage() {
                 <span>评分 {item.article.latestScore?.toFixed(1) ?? "—"}</span>
                 <span>发布 {item.publicationCount} 次</span>
               </div>
-            </Button>
+            </button>
           ))}
         </aside>
 
