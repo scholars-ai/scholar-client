@@ -1,7 +1,7 @@
 // core API 的类型化 client：类型来自 scholar-shared 发布的版本化契约包。
 import type { components, paths } from "@scholars-ai/contracts/core-api";
 
-const BASE = process.env.NEXT_PUBLIC_CORE_API_URL ?? "http://localhost:8080/api";
+const BASE = process.env.NEXT_PUBLIC_CORE_API_URL ?? "/api";
 
 type TopicList =
   paths["/v1/topics"]["get"]["responses"]["200"]["content"]["application/json"];
@@ -11,8 +11,18 @@ type Evaluation = components["schemas"]["TopicEvaluation"];
 type Source = components["schemas"]["SourceWithHealth"];
 type SourceInput = components["schemas"]["SourceInput"];
 type SourcePatch = components["schemas"]["SourcePatch"];
-type SchedulerSettings = components["schemas"]["SchedulerSettings"];
-type SchedulerSettingsPatch = components["schemas"]["SchedulerSettingsPatch"];
+export type ArticleWriteSchedule = {
+  enabled: boolean;
+  times: string[];
+  timezone: string;
+  maxTopics: number;
+};
+export type SchedulerSettings = components["schemas"]["SchedulerSettings"] & {
+  articleWrite: ArticleWriteSchedule;
+};
+type SchedulerSettingsPatch = components["schemas"]["SchedulerSettingsPatch"] & {
+  articleWrite?: ArticleWriteSchedule;
+};
 type JobAccepted = components["schemas"]["JobAccepted"];
 type ArticleList = components["schemas"]["ArticleList"];
 type Article = components["schemas"]["Article"];
@@ -34,6 +44,40 @@ type InsightStatus = components["schemas"]["InsightStatus"];
 type WeeklyReport = components["schemas"]["WeeklyReport"];
 type TriggerMemoryReflectRequest = components["schemas"]["TriggerMemoryReflectRequest"];
 
+export type PipelineStageSummary = {
+  key: "source_fetch" | "topic_scout" | "article_write";
+  label: string;
+  cadenceMinutes: number;
+  total: number;
+  ready: number;
+  passed: number;
+  failed: number;
+  rewrites: number;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+};
+export type PipelineSummary = {
+  generatedAt: string;
+  stages: PipelineStageSummary[];
+  recentErrors: Array<{
+    id: string;
+    queue: string;
+    errorType: string;
+    message: string;
+    retryable: boolean;
+    createdAt: string;
+  }>;
+};
+export type PipelineRun = {
+  id: string;
+  scheduleKey: string;
+  plannedAt: string;
+  enqueuedAt: string;
+  queue: string;
+  msgId: number | null;
+  note: string | null;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
@@ -50,6 +94,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => request<{ status: string; db: string }>(`/healthz`),
+  getPipelineSummary: () => request<PipelineSummary>(`/v1/pipeline/summary`),
+  listPipelineRuns: (limit = 50) =>
+    request<{ items: PipelineRun[] }>(`/v1/pipeline/runs?limit=${limit}`),
   listTopics: (status?: string) =>
     request<TopicList>(`/v1/topics${status ? `?status=${status}` : ""}`),
   getTopic: (id: string) => request<Topic>(`/v1/topics/${id}`),

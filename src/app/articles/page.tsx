@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { components } from "@scholars-ai/contracts/core-api";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { api } from "../../lib/api";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Textarea } from "../../components/ui/textarea";
 
 type Article = components["schemas"]["Article"];
 type ArticleDetail = components["schemas"]["ArticleDetail"];
@@ -34,6 +41,20 @@ function formatDate(value: string) {
 
 function documentMarkdown(article: Pick<Article, "title" | "contentMd">) {
   return `# ${article.title}\n\n${article.contentMd}`;
+}
+
+function buildPreviewMarkdown(title: string, content: string, originalTitle: string) {
+  const displayTitle = title.trim() || originalTitle.trim() || "未命名文章";
+  const lines = content.replace(/\r\n/g, "\n").split("\n");
+  while (lines[0]?.trim() === "") lines.shift();
+  const firstLine = lines[0]?.replace(/^#\s+/, "").trim();
+  const titleCandidates = [displayTitle, originalTitle.trim()].filter(Boolean);
+  if (firstLine && titleCandidates.includes(firstLine)) {
+    lines.shift();
+    while (lines[0]?.trim() === "") lines.shift();
+  }
+  const body = lines.join("\n").trim();
+  return body ? `# ${displayTitle}\n\n${body}` : `# ${displayTitle}`;
 }
 
 type DiffLine = { kind: "same" | "add" | "remove"; text: string };
@@ -83,6 +104,7 @@ export default function ArticlesPage() {
   const [detail, setDetail] = useState<ArticleDetail | null>(null);
   const [finalTitle, setFinalTitle] = useState("");
   const [finalContent, setFinalContent] = useState("");
+  const [reviewMode, setReviewMode] = useState<"preview" | "edit">("preview");
   const [rejectReason, setRejectReason] = useState("");
   const [postId, setPostId] = useState("");
   const [publishedAt, setPublishedAt] = useState("");
@@ -125,6 +147,7 @@ export default function ArticlesPage() {
       if (resetEditor) {
         setFinalTitle(result.article.title);
         setFinalContent(result.article.contentMd);
+        setReviewMode("preview");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "加载文章详情失败");
@@ -135,6 +158,10 @@ export default function ArticlesPage() {
 
   const originalDocument = detail ? documentMarkdown(detail.article) : "";
   const finalDocument = `# ${finalTitle}\n\n${finalContent}`;
+  const previewDocument = useMemo(
+    () => (detail ? buildPreviewMarkdown(finalTitle, finalContent, detail.article.title) : ""),
+    [detail, finalContent, finalTitle],
+  );
   const diff = useMemo(
     () => (detail ? lineDiff(originalDocument, finalDocument) : []),
     [detail, finalDocument, originalDocument],
@@ -183,6 +210,18 @@ export default function ArticlesPage() {
     setNotice("Markdown 文件已导出。");
   }
 
+  async function preparePublication() {
+    if (!detail) return;
+    await navigator.clipboard.writeText(finalDocument);
+    const destinations: Record<Platform, string> = {
+      xiaohongshu: "https://creator.xiaohongshu.com/",
+      zhihu: "https://www.zhihu.com/creator",
+      wechat: "https://mp.weixin.qq.com/",
+    };
+    window.open(destinations[detail.article.platform], "_blank", "noopener,noreferrer");
+    setNotice("已复制当前终稿，请在新打开的平台完成发布；发布后回来登记链接。");
+  }
+
   async function registerPublication() {
     if (!detail) return;
     if (!postId.trim()) {
@@ -222,26 +261,22 @@ export default function ArticlesPage() {
           <h1>文章审阅与发布登记</h1>
           <p className="lede">Agent 原稿保持不可变；你编辑的是人工终稿，Core 在发布时生成权威 diff 与修改比例。</p>
         </div>
-        <button className="button" onClick={() => void loadList()} disabled={loading}>刷新数据</button>
+        <Button onClick={() => void loadList()} disabled={loading}>刷新数据</Button>
       </div>
 
       <div className="toolbar">
-        <label htmlFor="article-status">状态</label>
-        <select id="article-status" className="select" value={status} onChange={(event) => setStatus(event.target.value as ArticleStatus | "")}>
-          <option value="pending_review">待终审</option>
-          <option value="approved">已通过</option>
-          <option value="published">已发布</option>
-          <option value="rejected">已拒绝</option>
-          <option value="rewrite_queued">历史回炉稿</option>
-          <option value="">全部</option>
-        </select>
-        <label htmlFor="article-platform">平台</label>
-        <select id="article-platform" className="select" value={platform} onChange={(event) => setPlatform(event.target.value as Platform | "")}>
-          <option value="">全部平台</option>
-          <option value="xiaohongshu">小红书</option>
-          <option value="zhihu">知乎</option>
-          <option value="wechat">公众号</option>
-        </select>
+        <Label htmlFor="article-status">状态</Label>
+        <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" ? "" : value as ArticleStatus)}>
+          <SelectTrigger id="article-status" className="w-[150px]"><SelectValue placeholder="状态" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="pending_review">待终审</SelectItem><SelectItem value="approved">已通过</SelectItem><SelectItem value="published">已发布</SelectItem><SelectItem value="rejected">已拒绝</SelectItem><SelectItem value="rewrite_queued">历史回炉稿</SelectItem><SelectItem value="all">全部</SelectItem>
+          </SelectContent>
+        </Select>
+        <Label htmlFor="article-platform">平台</Label>
+        <Select value={platform || "all"} onValueChange={(value) => setPlatform(value === "all" ? "" : value as Platform)}>
+          <SelectTrigger id="article-platform" className="w-[150px]"><SelectValue placeholder="平台" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">全部平台</SelectItem><SelectItem value="xiaohongshu">小红书</SelectItem><SelectItem value="zhihu">知乎</SelectItem><SelectItem value="wechat">公众号</SelectItem></SelectContent>
+        </Select>
         <span className="meta-row">共 {total} 篇</span>
       </div>
 
@@ -253,7 +288,8 @@ export default function ArticlesPage() {
           {loading && <div className="empty">正在读取文章…</div>}
           {!loading && items.length === 0 && <div className="empty">当前筛选没有文章。</div>}
           {items.map((item) => (
-            <button
+            <Button
+              variant="ghost"
               type="button"
               className={`article-list-item ${selectedId === item.article.id ? "selected" : ""}`}
               key={item.article.id}
@@ -270,7 +306,7 @@ export default function ArticlesPage() {
                 <span>评分 {item.article.latestScore?.toFixed(1) ?? "—"}</span>
                 <span>发布 {item.publicationCount} 次</span>
               </div>
-            </button>
+            </Button>
           ))}
         </aside>
 
@@ -294,9 +330,9 @@ export default function ArticlesPage() {
 
               <div className="version-tabs" aria-label="文章版本">
                 {detail.versions.map((version) => (
-                  <button className={`button ${version.id === detail.article.id ? "primary" : ""}`} key={version.id} onClick={() => void selectArticle(version.id)}>
+                  <Button variant={version.id === detail.article.id ? "primary" : "default"} size="sm" key={version.id} onClick={() => void selectArticle(version.id)}>
                     v{version.version} · {statusLabels[version.status]}
-                  </button>
+                  </Button>
                 ))}
               </div>
 
@@ -307,11 +343,31 @@ export default function ArticlesPage() {
                 </section>
                 <section className="panel review-pane">
                   <div className="pane-heading"><div><div className="eyebrow">HUMAN FINAL</div><h3>人工终稿</h3></div><span>{changedLines} 行变更</span></div>
-                  <label className="field"><span>最终标题</span><input className="input" value={finalTitle} onChange={(event) => setFinalTitle(event.target.value)} /></label>
-                  <label className="field review-editor-field"><span>最终 Markdown 正文</span><textarea className="textarea markdown-editor" value={finalContent} onChange={(event) => setFinalContent(event.target.value)} /></label>
+                  <div className="mode-toggle" role="group" aria-label="终稿视图">
+                    <Button variant="ghost" size="sm" className={`mode-toggle-button ${reviewMode === "preview" ? "active" : ""}`} aria-pressed={reviewMode === "preview"} onClick={() => setReviewMode("preview")}>预览</Button>
+                    <Button variant="ghost" size="sm" className={`mode-toggle-button ${reviewMode === "edit" ? "active" : ""}`} aria-pressed={reviewMode === "edit"} onClick={() => setReviewMode("edit")}>编辑</Button>
+                  </div>
+                  {reviewMode === "preview" ? (
+                    <div className="markdown-preview" data-testid="markdown-preview">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          a: (props) => <a {...props} target="_blank" rel="noreferrer" />,
+                        }}
+                      >
+                        {previewDocument}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div className="markdown-edit-form">
+                      <label className="field"><span>最终标题</span><Input value={finalTitle} onChange={(event) => setFinalTitle(event.target.value)} /></label>
+                      <label className="field review-editor-field"><span>最终 Markdown 正文</span><Textarea className="markdown-editor" value={finalContent} onChange={(event) => setFinalContent(event.target.value)} /></label>
+                    </div>
+                  )}
                   <div className="card-actions">
-                    <button className="button" onClick={() => void copyMarkdown()}>复制 Markdown</button>
-                    <button className="button" onClick={downloadMarkdown}>下载 .md</button>
+                    <Button variant="primary" onClick={() => void preparePublication()}>复制并去发布</Button>
+                    <Button onClick={() => void copyMarkdown()}>复制 Markdown</Button>
+                    <Button onClick={downloadMarkdown}>下载 .md</Button>
                   </div>
                 </section>
               </div>
@@ -341,8 +397,8 @@ export default function ArticlesPage() {
               {detail.article.status === "pending_review" && (
                 <section className="panel action-panel">
                   <div><div className="eyebrow">FINAL REVIEW</div><h3>人工终审</h3><p>通过/拒绝只推进状态，不会覆盖上方 Agent 原稿。</p></div>
-                  <label className="field"><span>拒绝原因（仅拒绝时使用）</span><input className="input" value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="例如：事实依据不足，暂不发布" /></label>
-                  <div className="card-actions"><button className="button primary" disabled={busy} onClick={() => void review("approve")}>终审通过</button><button className="button danger" disabled={busy} onClick={() => void review("reject")}>拒绝</button></div>
+                  <label className="field"><span>拒绝原因（仅拒绝时使用）</span><Input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="例如：事实依据不足，暂不发布" /></label>
+                  <div className="card-actions"><Button variant="primary" disabled={busy} onClick={() => void review("approve")}>终审通过</Button><Button variant="danger" disabled={busy} onClick={() => void review("reject")}>拒绝</Button></div>
                 </section>
               )}
 
@@ -350,11 +406,11 @@ export default function ArticlesPage() {
                 <section className="panel publication-form">
                   <div><div className="eyebrow">PUBLICATION</div><h3>登记实际发布</h3><p>请先在目标平台发布，再登记链接和实际终稿。第一次登记会把文章标记为已发布。</p></div>
                   <div className="form-grid">
-                    <label className="field full"><span>平台链接或帖子 ID</span><input className="input" value={postId} onChange={(event) => setPostId(event.target.value)} placeholder="https://... 或平台侧 ID" /></label>
-                    <label className="field"><span>发布时间（不填则用现在）</span><input className="input" type="datetime-local" value={publishedAt} onChange={(event) => setPublishedAt(event.target.value)} /></label>
-                    <label className="field"><span>发布时粉丝数（可选）</span><input className="input" type="number" min="0" value={followers} onChange={(event) => setFollowers(event.target.value)} /></label>
+                    <label className="field full"><span>平台链接或帖子 ID</span><Input value={postId} onChange={(event) => setPostId(event.target.value)} placeholder="https://... 或平台侧 ID" /></label>
+                    <label className="field"><span>发布时间（不填则用现在）</span><Input type="datetime-local" value={publishedAt} onChange={(event) => setPublishedAt(event.target.value)} /></label>
+                    <label className="field"><span>发布时粉丝数（可选）</span><Input type="number" min="0" value={followers} onChange={(event) => setFollowers(event.target.value)} /></label>
                   </div>
-                  <button className="button primary" disabled={busy} onClick={() => void registerPublication()}>登记发布并保存 diff</button>
+                  <Button variant="primary" disabled={busy} onClick={() => void registerPublication()}>登记发布并保存 diff</Button>
                 </section>
               )}
 

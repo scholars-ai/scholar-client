@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { components } from "@scholars-ai/contracts/core-api";
 import { api } from "../../lib/api";
+import { Button } from "../../components/ui/button";
+import { Label } from "../../components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 
 type Topic = components["schemas"]["Topic"];
 type Evaluation = components["schemas"]["TopicEvaluation"];
@@ -94,25 +97,17 @@ export default function TopicsPage() {
           <h1>选题看板</h1>
           <p className="lede">从素材聚合到评分理由，逐条审阅并决定哪些选题进入写作。</p>
         </div>
-        <button className="button" onClick={() => void load()} disabled={loading}>
+        <Button onClick={() => void load()} disabled={loading}>
           {loading ? "刷新中…" : "刷新数据"}
-        </button>
+        </Button>
       </div>
 
       <div className="toolbar">
-        <label htmlFor="topic-status">筛选状态</label>
-        <select
-          className="select"
-          id="topic-status"
-          value={status}
-          onChange={(event) => setStatus(event.target.value as Status | "")}
-        >
-          <option value="scored">待确认</option>
-          <option value="candidate">待评分</option>
-          <option value="approved">已确认</option>
-          <option value="rejected">已否决</option>
-          <option value="">全部</option>
-        </select>
+        <Label htmlFor="topic-status">筛选状态</Label>
+        <Select value={status || "all"} onValueChange={(value) => setStatus(value === "all" ? "" : value as Status)}>
+          <SelectTrigger id="topic-status" className="w-[150px]"><SelectValue placeholder="筛选状态" /></SelectTrigger>
+          <SelectContent><SelectItem value="scored">待确认</SelectItem><SelectItem value="candidate">待评分</SelectItem><SelectItem value="approved">已确认</SelectItem><SelectItem value="rejected">已否决</SelectItem><SelectItem value="all">全部</SelectItem></SelectContent>
+        </Select>
         <span className="meta-row">共 {total} 条</span>
       </div>
 
@@ -143,18 +138,18 @@ export default function TopicsPage() {
                 <span>ID：{topic.id.slice(0, 8)}</span>
               </div>
               <div className="card-actions">
-                <button className="button" onClick={() => void toggleEvaluation(topic.id)}>
+                <Button onClick={() => void toggleEvaluation(topic.id)}>
                   {isExpanded ? "收起评分" : "查看评分与理由"}
-                </button>
+                </Button>
                 {topic.status === "scored" && (
-                  <button className="button primary" disabled={busy === topic.id} onClick={() => void transition(topic, "approve")}>
+                  <Button variant="primary" disabled={busy === topic.id} onClick={() => void transition(topic, "approve")}>
                     {busy === topic.id ? "处理中…" : "确认进入写作"}
-                  </button>
+                  </Button>
                 )}
                 {(topic.status === "candidate" || topic.status === "scored") && (
-                  <button className="button danger" disabled={busy === topic.id} onClick={() => void transition(topic, "reject")}>
+                  <Button variant="danger" disabled={busy === topic.id} onClick={() => void transition(topic, "reject")}>
                     否决
-                  </button>
+                  </Button>
                 )}
               </div>
               {isExpanded && (

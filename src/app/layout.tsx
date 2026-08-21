@@ -30,8 +30,9 @@ export default function RootLayout({
       >
         <div className="app-shell">
           <header className="topbar">
-            <Link className="brand" href="/">SCHOLARS<span>·AI</span></Link>
+              <Link className="brand" href="/">SCHOLARS<span>·AI</span></Link>
             <nav className="nav-links" aria-label="主导航">
+              <Link href="/pipeline">流水线</Link>
               <Link href="/topics">选题看板</Link>
               <Link href="/articles">文章审阅</Link>
               <Link href="/metrics">数据回流</Link>
