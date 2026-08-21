@@ -86,7 +86,7 @@ button, input, select, textarea { font: inherit; }
 .success { background: #eaf7f1; border-color: #b7dfcf; color: #17664e; margin-bottom: 16px; padding: 14px 16px; }
 .article-page { max-width: 1540px; }
 .article-workspace { align-items: start; display: grid; gap: 18px; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); }
-.article-list { max-height: calc(100vh - 190px); overflow: auto; position: sticky; top: 18px; }
+.article-list { align-self: stretch; }
 .article-list-item { background: transparent; border: 0; border-bottom: 1px solid var(--line); color: inherit; cursor: pointer; display: grid; gap: 9px; min-width: 0; padding: 17px; text-align: left; white-space: normal; width: 100%; }
 .article-list-item:last-child { border-bottom: 0; }
 .article-list-item:hover { background: #f8f9fa; }
@@ -201,7 +201,7 @@ button, input, select, textarea { font: inherit; }
 .error-row:first-child { border-top: 0; padding-top: 0; }
 .error-row p { color: #7f3029; font-size: 13px; line-height: 1.5; margin: 10px 0 0; overflow-wrap: anywhere; }
 .pipeline-footnote { justify-content: flex-end; margin-top: 18px; }
-@media (max-width: 1000px) { .article-workspace { grid-template-columns: 1fr; } .article-list { max-height: 360px; position: static; } .review-columns { grid-template-columns: 1fr; } }
+@media (max-width: 1000px) { .article-workspace { grid-template-columns: 1fr; } .review-columns { grid-template-columns: 1fr; } }
 @media (max-width: 1000px) { .metrics-layout, .pipeline-columns { grid-template-columns: 1fr; } .pipeline-grid { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .topbar { gap: 16px; padding: 0 18px; } .nav-links { gap: 12px; overflow: auto; } .env-pill { display: none; } .page { padding: 30px 18px 60px; } .page-heading { align-items: start; flex-direction: column; } .detail-grid, .form-grid, .settings-grid { grid-template-columns: 1fr; } .field.full { grid-column: auto; } .article-overview { gap: 14px; } .review-pane { min-height: auto; } .markdown-editor { min-height: 360px; } }
 @media (max-width: 760px) { .topbar { gap: 16px; padding: 0 18px; } .nav-links { gap: 12px; overflow: auto; } .env-pill { display: none; } .page { padding: 30px 18px 60px; } .page-heading { align-items: start; flex-direction: column; gap: 18px; } .detail-grid, .form-grid, .settings-grid { grid-template-columns: 1fr; } .field.full { grid-column: auto; } .article-overview { gap: 14px; } .review-pane { min-height: auto; } .markdown-editor { min-height: 360px; } .card-actions { flex-wrap: wrap; } .toolbar { align-items: stretch; } .toolbar > [data-radix-select-trigger] { flex: 1 1 150px; } }
