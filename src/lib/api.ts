@@ -43,6 +43,48 @@ type InsightKind = components["schemas"]["InsightKind"];
 type InsightStatus = components["schemas"]["InsightStatus"];
 type WeeklyReport = components["schemas"]["WeeklyReport"];
 type TriggerMemoryReflectRequest = components["schemas"]["TriggerMemoryReflectRequest"];
+export type WorkflowRun = {
+  id: string;
+  correlationId: string;
+  mode: "cascade";
+  startNode: "source_fetch";
+  status: "queued" | "running" | "succeeded" | "failed";
+  errorMessage: string | null;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+};
+export type WorkflowEvent = {
+  id: string;
+  runId: string;
+  sequence: number;
+  nodeKey: string;
+  eventType: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "skipped";
+  message: string;
+  agentRunId: string | null;
+  payload: Record<string, unknown>;
+  occurredAt: string;
+};
+export type WorkflowArtifact = {
+  id: string;
+  runId: string;
+  nodeKey: string;
+  artifactType: string;
+  artifactId: string;
+  title: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+export type WorkflowRunDetail = WorkflowRun & {
+  events: WorkflowEvent[];
+  artifacts: WorkflowArtifact[];
+};
+export type CreateWorkflowRunRequest = {
+  sourceIds?: string[];
+  metadata?: Record<string, unknown>;
+};
 
 export type PipelineStageSummary = {
   key: "source_fetch" | "topic_scout" | "article_write";
@@ -198,4 +240,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  listWorkflowRuns: (limit = 30) =>
+    request<{ items: WorkflowRun[] }>(`/v1/workflow/runs?limit=${limit}`),
+  createWorkflowRun: (input: CreateWorkflowRunRequest = {}) =>
+    request<WorkflowRun>(`/v1/workflow/runs`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  getWorkflowRun: (id: string) => request<WorkflowRunDetail>(`/v1/workflow/runs/${id}`),
+  listWorkflowEvents: (id: string, after = 0) =>
+    request<WorkflowEvent[]>(`/v1/workflow/runs/${id}/events?after=${after}`),
+  workflowStreamUrl: (id: string) => `${BASE}/v1/workflow/runs/${id}/stream`,
 };
