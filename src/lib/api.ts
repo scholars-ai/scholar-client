@@ -17,11 +17,24 @@ export type ArticleWriteSchedule = {
   timezone: string;
   maxTopics: number;
 };
-export type SchedulerSettings = components["schemas"]["SchedulerSettings"] & {
-  articleWrite: ArticleWriteSchedule;
+export type ContentWorkflowSchedule = {
+  enabled: boolean;
+  intervalHours: number;
 };
-type SchedulerSettingsPatch = components["schemas"]["SchedulerSettingsPatch"] & {
+export type WorkflowSnapshotRetentionSchedule = {
+  enabled: boolean;
+  retentionHours: number;
+  batchSize: number;
+};
+export type SchedulerSettings = Omit<components["schemas"]["SchedulerSettings"], "contentWorkflow" | "workflowSnapshots"> & {
+  contentWorkflow: ContentWorkflowSchedule;
+  articleWrite: ArticleWriteSchedule;
+  workflowSnapshots: WorkflowSnapshotRetentionSchedule;
+};
+type SchedulerSettingsPatch = Omit<components["schemas"]["SchedulerSettingsPatch"], "contentWorkflow" | "workflowSnapshots"> & {
+  contentWorkflow?: ContentWorkflowSchedule;
   articleWrite?: ArticleWriteSchedule;
+  workflowSnapshots?: WorkflowSnapshotRetentionSchedule;
 };
 type JobAccepted = components["schemas"]["JobAccepted"];
 type ArticleList = components["schemas"]["ArticleList"];
