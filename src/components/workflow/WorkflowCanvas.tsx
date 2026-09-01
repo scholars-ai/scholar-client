@@ -16,9 +16,9 @@ import {
 import { Activity, Bot, Check, CircleAlert, Clock3, LoaderCircle, Play, Radio, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { api, type ReplayMode, type WorkflowArtifact, type WorkflowConfigOverrides, type WorkflowEvent, type WorkflowItemDecision, type WorkflowNodeRun, type WorkflowRun, type WorkflowRunComparison } from "@/lib/api";
+import { api, type ReplayMode, type WorkflowArtifact, type WorkflowConfigOverrides, type WorkflowEvent, type WorkflowItemDecision, type WorkflowNodeRun, type WorkflowRun, type WorkflowRunComparison, type WorkflowSnapshot } from "@/lib/api";
 
-type NodeState = "idle" | "queued" | "running" | "succeeded" | "failed";
+type NodeState = "idle" | "queued" | "running" | "succeeded" | "partial_failed" | "failed" | "skipped" | "cancelled";
 type WorkflowNodeData = {
   label: string;
   description: string;
@@ -56,7 +56,10 @@ function WorkflowNode({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
     queued: "排队中",
     running: "执行中",
     succeeded: "已完成",
+    partial_failed: "部分失败",
     failed: "失败",
+    skipped: "已跳过",
+    cancelled: "已取消",
   };
   return (
     <div className={`workflow-node state-${data.state}${selected ? " is-selected" : ""}`}>
@@ -117,6 +120,10 @@ export default function WorkflowCanvas() {
   const [comparison, setComparison] = useState<WorkflowRunComparison>();
   const [comparisonRunId, setComparisonRunId] = useState("");
   const [comparing, setComparing] = useState(false);
+  const [inputSnapshot, setInputSnapshot] = useState<WorkflowSnapshot>();
+  const [outputSnapshot, setOutputSnapshot] = useState<WorkflowSnapshot>();
+  const [snapshotsLoading, setSnapshotsLoading] = useState(false);
+  const [snapshotError, setSnapshotError] = useState<string>();
 
   const loadRuns = useCallback(async () => {
     const result = await api.listWorkflowRuns();
@@ -162,6 +169,31 @@ export default function WorkflowCanvas() {
       setConnection("offline");
     };
   }, [loadRun, selectedRunId]);
+
+  useEffect(() => {
+    setInputSnapshot(undefined);
+    setOutputSnapshot(undefined);
+    setSnapshotError(undefined);
+    const selectedNodeRun = nodeRuns.find((item) => item.nodeKey === selectedNode);
+    const inputId = selectedNodeRun?.inputSnapshotId;
+    const outputId = selectedNodeRun?.outputSnapshotId;
+    if (!selectedRunId || (!inputId && !outputId)) return;
+    let active = true;
+    setSnapshotsLoading(true);
+    Promise.all([
+      inputId ? api.getWorkflowSnapshot(selectedRunId, inputId) : Promise.resolve(undefined),
+      outputId ? api.getWorkflowSnapshot(selectedRunId, outputId) : Promise.resolve(undefined),
+    ]).then(([input, output]) => {
+      if (!active) return;
+      setInputSnapshot(input);
+      setOutputSnapshot(output);
+    }).catch((reason: unknown) => {
+      if (active) setSnapshotError(reason instanceof Error ? reason.message : "无法读取节点快照");
+    }).finally(() => {
+      if (active) setSnapshotsLoading(false);
+    });
+    return () => { active = false; };
+  }, [nodeRuns, selectedNode, selectedRunId]);
 
   const trigger = async () => {
     setTriggering(true);
@@ -316,6 +348,7 @@ export default function WorkflowCanvas() {
             <div><dt>输出快照</dt><dd><code>{inspectorNodeRun?.outputSnapshotId ?? "-"}</code></dd></div>
             <div><dt>漏斗计数</dt><dd>{inspectorNodeRun?.counts ? Object.entries(inspectorNodeRun.counts).map(([key, value]) => `${key}: ${String(value)}`).join(" · ") : "-"}</dd></div>
           </dl>
+          <div className="workflow-artifact-block"><div className="workflow-subheading"><span>节点快照</span><strong>{snapshotsLoading ? "读取中" : "输入 / 输出"}</strong></div>{snapshotError ? <span className="muted">{snapshotError}</span> : snapshotsLoading ? <span className="muted">正在读取不可变快照…</span> : <div className="workflow-snapshot-grid"><div><span>输入</span>{inputSnapshot ? <pre>{JSON.stringify(inputSnapshot.payload, null, 2)}</pre> : <span className="muted">无</span>}</div><div><span>输出</span>{outputSnapshot ? <pre>{JSON.stringify(outputSnapshot.payload, null, 2)}</pre> : <span className="muted">无</span>}</div></div>}</div>
           <div className="workflow-artifact-block"><div className="workflow-subheading"><span>节点产物</span><strong>{inspectorArtifacts.length}</strong></div>{inspectorArtifacts.length === 0 ? <span className="muted">运行后会在这里显示可追踪产物。</span> : inspectorArtifacts.map((artifact) => <Link key={artifact.id} href={artifactHref(artifact)} className="workflow-artifact-link"><span>{artifact.title || artifact.artifactType}</span><span>打开 <span aria-hidden="true">↗</span></span></Link>)}</div>
           {(selectedNode === "topic_evaluate" || selectedNode === "article_evaluate") && <div className="workflow-artifact-block"><div className="workflow-subheading"><span>逐条判定</span><strong>{inspectorDecisions.length}</strong></div>{inspectorDecisions.length === 0 ? <span className="muted">暂无判定记录。</span> : inspectorDecisions.map((decision) => <label key={decision.id} className="workflow-decision-row"><input type="checkbox" checked={selectedItemIds.includes(decision.itemId)} onChange={() => toggleItem(decision.itemId)} /><span><strong>{decision.decision} · {decision.reasonCode}</strong><small>{decision.reason}</small></span><span>{decision.totalScore ?? "-"}</span></label>)}</div>}
         </aside>
