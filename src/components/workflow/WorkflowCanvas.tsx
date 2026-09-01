@@ -258,6 +258,9 @@ export default function WorkflowCanvas() {
             <div><dt>最近事件</dt><dd>{inspectorEvent?.message ?? "尚未执行"}</dd></div>
             <div><dt>发生时间</dt><dd>{formatTime(inspectorEvent?.occurredAt)}</dd></div>
             <div><dt>Agent 操作</dt><dd>{inspectorEvent?.payload?.queue ? `消费 ${String(inspectorEvent.payload.queue)} 队列` : "等待运行"}</dd></div>
+            <div><dt>输入快照</dt><dd><code>{inspectorNodeRun?.inputSnapshotId ?? "-"}</code></dd></div>
+            <div><dt>输出快照</dt><dd><code>{inspectorNodeRun?.outputSnapshotId ?? "-"}</code></dd></div>
+            <div><dt>漏斗计数</dt><dd>{inspectorNodeRun?.counts ? Object.entries(inspectorNodeRun.counts).map(([key, value]) => `${key}: ${String(value)}`).join(" · ") : "-"}</dd></div>
           </dl>
           <div className="workflow-artifact-block"><div className="workflow-subheading"><span>节点产物</span><strong>{inspectorArtifacts.length}</strong></div>{inspectorArtifacts.length === 0 ? <span className="muted">运行后会在这里显示可追踪产物。</span> : inspectorArtifacts.map((artifact) => <Link key={artifact.id} href={artifactHref(artifact)} className="workflow-artifact-link"><span>{artifact.title || artifact.artifactType}</span><span>打开 <span aria-hidden="true">↗</span></span></Link>)}</div>
           {(selectedNode === "topic_evaluate" || selectedNode === "article_evaluate") && <div className="workflow-artifact-block"><div className="workflow-subheading"><span>逐条判定</span><strong>{inspectorDecisions.length}</strong></div>{inspectorDecisions.length === 0 ? <span className="muted">暂无判定记录。</span> : inspectorDecisions.map((decision) => <div key={decision.id} className="workflow-artifact-link"><span>{decision.decision} · {decision.reasonCode}</span><span>{decision.totalScore ?? "-"}</span></div>)}</div>}

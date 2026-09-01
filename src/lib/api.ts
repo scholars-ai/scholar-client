@@ -51,9 +51,9 @@ export type WorkflowRun = {
   errorMessage: string | null; metadata?: Record<string, unknown>; createdAt: string; startedAt: string | null; completedAt: string | null;
 };
 export type WorkflowEvent = { id: string; runId: string; sequence: number; nodeKey: string; eventType: string; status: string; message: string; agentRunId: string | null; payload: Record<string, unknown>; occurredAt: string };
-export type WorkflowArtifact = { id: string; runId: string; nodeKey: string; artifactType: string; artifactId: string; title: string; metadata: Record<string, unknown>; createdAt: string };
+export type WorkflowArtifact = { id: string; runId: string; nodeKey: string; artifactType: string; artifactId: string; title: string; metadata: Record<string, unknown>; createdAt: string; parentArtifactId?: string | null; snapshotId?: string | null };
 export type WorkflowNodeRun = { id: string; runId: string; nodeKey: string; status: string; inputSnapshotId: string | null; outputSnapshotId: string | null; configSnapshot: Record<string, unknown>; counts: Record<string, unknown>; createdAt: string; startedAt: string | null; completedAt: string | null };
-export type WorkflowItemDecision = { id: string; runId: string; nodeRunId: string; itemId: string; itemType: string; decision: string; reasonCode: string; reason: string; totalScore: number | null; createdAt: string };
+export type WorkflowItemDecision = { id: string; runId: string; nodeRunId: string; itemId: string; itemType: string; decision: string; reasonCode: string; reason: string; dimensionScores?: Record<string, number> | null; totalScore: number | null; threshold?: number | null; weightVersion?: number | null; rubricVersion?: string | null; inputRefs?: Record<string, unknown>; evidenceRefs?: Record<string, unknown>; agentRunId?: string | null; traceId?: string | null; createdAt: string };
 export type WorkflowRunDetail = WorkflowRun & { events: WorkflowEvent[]; artifacts: WorkflowArtifact[]; nodeRuns: WorkflowNodeRun[]; decisions: WorkflowItemDecision[] };
 export type CreateWorkflowRunRequest = { sourceIds?: string[]; metadata?: Record<string, unknown> };
 
