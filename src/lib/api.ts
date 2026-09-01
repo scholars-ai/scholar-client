@@ -56,6 +56,41 @@ export type WorkflowNodeRun = { id: string; runId: string; nodeKey: string; stat
 export type WorkflowItemDecision = { id: string; runId: string; nodeRunId: string; itemId: string; itemType: string; decision: string; reasonCode: string; reason: string; dimensionScores?: Record<string, number> | null; totalScore: number | null; threshold?: number | null; weightVersion?: number | null; rubricVersion?: string | null; inputRefs?: Record<string, unknown>; evidenceRefs?: Record<string, unknown>; agentRunId?: string | null; traceId?: string | null; createdAt: string };
 export type WorkflowRunDetail = WorkflowRun & { events: WorkflowEvent[]; artifacts: WorkflowArtifact[]; nodeRuns: WorkflowNodeRun[]; decisions: WorkflowItemDecision[] };
 export type CreateWorkflowRunRequest = { sourceIds?: string[]; metadata?: Record<string, unknown> };
+export type ReplayMode = "full" | "failed_items" | "selected_items" | "evaluate_only";
+export type ReplayScope = { mode: ReplayMode; itemIds?: string[]; useCurrentInput?: boolean };
+export type WorkflowConfigOverrides = {
+  agentVersion?: string;
+  promptVersion?: string;
+  rubricVersion?: string;
+  topicRubricVersion?: string;
+  articleRubricVersion?: string;
+  weightVersion?: number;
+  topicWeightVersion?: number;
+  articleWeightVersion?: number;
+  model?: string;
+  topicScoutModel?: string;
+  topicJudgeModel?: string;
+  outlineModel?: string;
+  draftModel?: string;
+  criticModel?: string;
+  articleJudgeModel?: string;
+  passThreshold?: number;
+  topicPassThreshold?: number;
+  articlePassThreshold?: number;
+  maxConcurrency?: number;
+  maxBatchSize?: number;
+};
+export type WorkflowStageMetrics = {
+  inputCount?: number; outputCount?: number; accepted?: number; rejected?: number;
+  skipped?: number; failed?: number; passRate?: number | null;
+  scoreDistribution?: Record<string, unknown>; tokenCount?: number | null; cost?: number | null;
+};
+export type WorkflowRunComparison = {
+  baseRunId: string; otherRunId: string; sameInput: boolean;
+  stages: Record<string, { base: WorkflowStageMetrics; other: WorkflowStageMetrics }>;
+  reasonCounts: Record<string, unknown>;
+  artifacts?: Record<string, unknown>;
+};
 
 export type PipelineStageSummary = {
   key: "source_fetch" | "topic_scout" | "article_write";
@@ -221,13 +256,13 @@ export const api = {
   getWorkflowRun: (id: string) => request<WorkflowRunDetail>(`/v1/workflow/runs/${id}`),
   listWorkflowNodeDecisions: (id: string, nodeKey: string, decision?: string) =>
     request<WorkflowItemDecision[]>(`/v1/workflow/runs/${id}/nodes/${nodeKey}/decisions${decision ? `?decision=${decision}` : ""}`),
-  replayWorkflowRun: (id: string, replayFromNode: string, replayScope: Record<string, unknown>, reason?: string) =>
+  replayWorkflowRun: (id: string, replayFromNode: string, replayScope: ReplayScope, reason?: string, configOverrides?: WorkflowConfigOverrides) =>
     request<WorkflowRun>(`/v1/workflow/runs/${id}/replay`, {
       method: "POST",
-      body: JSON.stringify({ replayFromNode, replayScope, ...(reason ? { reason } : {}) }),
+      body: JSON.stringify({ replayFromNode, replayScope, ...(reason ? { reason } : {}), ...(configOverrides && Object.keys(configOverrides).length ? { configOverrides } : {}) }),
     }),
   compareWorkflowRuns: (id: string, otherRunId: string) =>
-    request<{ baseRunId: string; otherRunId: string; sameInput: boolean; stages: Record<string, unknown>; reasonCounts: Record<string, unknown> }>(`/v1/workflow/runs/${id}/compare`, {
+    request<WorkflowRunComparison>(`/v1/workflow/runs/${id}/compare`, {
       method: "POST",
       body: JSON.stringify({ otherRunId }),
     }),
