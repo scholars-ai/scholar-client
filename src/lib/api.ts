@@ -65,7 +65,7 @@ export type WorkflowRun = {
 };
 export type WorkflowEvent = { id: string; runId: string; sequence: number; nodeKey: string; eventType: string; status: string; message: string; agentRunId: string | null; payload: Record<string, unknown>; occurredAt: string };
 export type WorkflowArtifact = { id: string; runId: string; nodeKey: string; artifactType: string; artifactId: string; title: string; metadata: Record<string, unknown>; createdAt: string; parentArtifactId?: string | null; snapshotId?: string | null };
-export type WorkflowSnapshot = { id: string; runId: string; kind: "definition" | "input" | "output" | "config"; payload: Record<string, unknown>; sha256: string; createdAt: string };
+export type WorkflowSnapshot = { id: string; runId: string; kind: "definition" | "input" | "output" | "config"; payload: Record<string, unknown>; sha256: string; archivedAt?: string | null; storageRef?: string | null; retentionUntil?: string | null; createdAt: string };
 export type WorkflowNodeRun = { id: string; runId: string; nodeKey: string; status: string; inputSnapshotId: string | null; outputSnapshotId: string | null; configSnapshot: Record<string, unknown>; counts: Record<string, unknown>; createdAt: string; startedAt: string | null; completedAt: string | null };
 export type WorkflowItemDecision = { id: string; runId: string; nodeRunId: string; itemId: string; itemType: string; decision: string; reasonCode: string; reason: string; dimensionScores?: Record<string, number> | null; totalScore: number | null; threshold?: number | null; weightVersion?: number | null; rubricVersion?: string | null; inputRefs?: Record<string, unknown>; evidenceRefs?: Record<string, unknown>; agentRunId?: string | null; traceId?: string | null; createdAt: string };
 export type WorkflowRunDetail = WorkflowRun & { events: WorkflowEvent[]; artifacts: WorkflowArtifact[]; nodeRuns: WorkflowNodeRun[]; decisions: WorkflowItemDecision[] };
@@ -97,13 +97,14 @@ export type WorkflowConfigOverrides = {
 export type WorkflowStageMetrics = {
   inputCount?: number; outputCount?: number; accepted?: number; rejected?: number;
   skipped?: number; failed?: number; passRate?: number | null;
-  scoreDistribution?: Record<string, unknown>; tokenCount?: number | null; cost?: number | null;
+  scoreDistribution?: Record<string, unknown>; tokenCount?: number | null; cost?: number | null; durationSeconds?: number | null;
 };
 export type WorkflowRunComparison = {
   baseRunId: string; otherRunId: string; sameInput: boolean;
   stages: Record<string, { base: WorkflowStageMetrics; other: WorkflowStageMetrics }>;
   reasonCounts: Record<string, unknown>;
   artifacts?: Record<string, unknown>;
+  cost?: { base?: Record<string, unknown>; other?: Record<string, unknown> };
 };
 
 export type PipelineStageSummary = {
