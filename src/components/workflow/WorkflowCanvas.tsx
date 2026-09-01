@@ -16,7 +16,7 @@ import {
 import { Activity, Bot, Check, CircleAlert, Clock3, LoaderCircle, Play, Radio, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { api, type WorkflowArtifact, type WorkflowEvent, type WorkflowRun } from "@/lib/api";
+import { api, type WorkflowArtifact, type WorkflowEvent, type WorkflowItemDecision, type WorkflowNodeRun, type WorkflowRun } from "@/lib/api";
 
 type NodeState = "idle" | "queued" | "running" | "succeeded" | "failed";
 type WorkflowNodeData = {
@@ -103,6 +103,8 @@ export default function WorkflowCanvas() {
   const [selectedRunId, setSelectedRunId] = useState<string>();
   const [events, setEvents] = useState<WorkflowEvent[]>([]);
   const [artifacts, setArtifacts] = useState<WorkflowArtifact[]>([]);
+  const [nodeRuns, setNodeRuns] = useState<WorkflowNodeRun[]>([]);
+  const [decisions, setDecisions] = useState<WorkflowItemDecision[]>([]);
   const [selectedNode, setSelectedNode] = useState("source_fetch");
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
@@ -119,6 +121,8 @@ export default function WorkflowCanvas() {
     const result = await api.getWorkflowRun(id);
     setEvents(result.events);
     setArtifacts(result.artifacts);
+    setNodeRuns(result.nodeRuns);
+    setDecisions(result.decisions);
   }, []);
 
   useEffect(() => {
@@ -167,6 +171,18 @@ export default function WorkflowCanvas() {
     }
   };
 
+  const replay = async () => {
+    if (!selectedRunId || selectedNode === "trigger") return;
+    setError(undefined);
+    try {
+      const run = await api.replayWorkflowRun(selectedRunId, selectedNode, { mode: "full" }, `从 ${selectedNode} 重新运行`);
+      setRuns((current) => [run, ...current.filter((item) => item.id !== run.id)]);
+      setSelectedRunId(run.id);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "无法创建 replay 运行");
+    }
+  };
+
   const nodes = useMemo<Node<WorkflowNodeData>[]>(() => NODE_ORDER.map((definition) => ({
     id: definition.key,
     type: "workflow",
@@ -195,6 +211,8 @@ export default function WorkflowCanvas() {
 
   const inspectorEvent = latestEvent(events, selectedNode);
   const inspectorArtifacts = artifacts.filter((item) => item.nodeKey === selectedNode);
+  const inspectorNodeRun = nodeRuns.find((item) => item.nodeKey === selectedNode);
+  const inspectorDecisions = decisions.filter((item) => item.nodeRunId === inspectorNodeRun?.id);
 
   return (
     <main className="workflow-page">
@@ -235,12 +253,14 @@ export default function WorkflowCanvas() {
         <aside className="workflow-inspector">
           <div className="workflow-section-heading"><div><span className="section-kicker">NODE INSPECTOR</span><h2>{NODE_ORDER.find((item) => item.key === selectedNode)?.label}</h2></div><span className={`status status-${nodeState(events, selectedNode)}`}>{nodeState(events, selectedNode)}</span></div>
           <p className="workflow-description">{NODE_ORDER.find((item) => item.key === selectedNode)?.description}</p>
+          {selectedRunId && selectedNode !== "trigger" && <button className="button button-quiet" onClick={replay}><RefreshCw size={14} />从此节点 replay</button>}
           <dl className="workflow-detail-list">
             <div><dt>最近事件</dt><dd>{inspectorEvent?.message ?? "尚未执行"}</dd></div>
             <div><dt>发生时间</dt><dd>{formatTime(inspectorEvent?.occurredAt)}</dd></div>
             <div><dt>Agent 操作</dt><dd>{inspectorEvent?.payload?.queue ? `消费 ${String(inspectorEvent.payload.queue)} 队列` : "等待运行"}</dd></div>
           </dl>
           <div className="workflow-artifact-block"><div className="workflow-subheading"><span>节点产物</span><strong>{inspectorArtifacts.length}</strong></div>{inspectorArtifacts.length === 0 ? <span className="muted">运行后会在这里显示可追踪产物。</span> : inspectorArtifacts.map((artifact) => <Link key={artifact.id} href={artifactHref(artifact)} className="workflow-artifact-link"><span>{artifact.title || artifact.artifactType}</span><span>打开 <span aria-hidden="true">↗</span></span></Link>)}</div>
+          {(selectedNode === "topic_evaluate" || selectedNode === "article_evaluate") && <div className="workflow-artifact-block"><div className="workflow-subheading"><span>逐条判定</span><strong>{inspectorDecisions.length}</strong></div>{inspectorDecisions.length === 0 ? <span className="muted">暂无判定记录。</span> : inspectorDecisions.map((decision) => <div key={decision.id} className="workflow-artifact-link"><span>{decision.decision} · {decision.reasonCode}</span><span>{decision.totalScore ?? "-"}</span></div>)}</div>}
         </aside>
 
         <section className="workflow-timeline">

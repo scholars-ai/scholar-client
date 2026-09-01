@@ -44,47 +44,18 @@ type InsightStatus = components["schemas"]["InsightStatus"];
 type WeeklyReport = components["schemas"]["WeeklyReport"];
 type TriggerMemoryReflectRequest = components["schemas"]["TriggerMemoryReflectRequest"];
 export type WorkflowRun = {
-  id: string;
-  correlationId: string;
-  mode: "cascade";
-  startNode: "source_fetch";
-  status: "queued" | "running" | "succeeded" | "failed";
-  errorMessage: string | null;
-  metadata?: Record<string, unknown>;
-  createdAt: string;
-  startedAt: string | null;
-  completedAt: string | null;
+  id: string; correlationId: string; mode: "content_production"; triggerType: "scheduled" | "manual" | "replay";
+  startNode: string; status: "queued" | "running" | "waiting_human_review" | "completed" | "completed_empty" | "partial_failed" | "failed" | "cancelled";
+  parentRunId: string | null; replayFromNode?: string | null; replayScope: Record<string, unknown> | null;
+  inputSnapshotId: string | null; configSnapshotId: string | null; summary: Record<string, unknown>;
+  errorMessage: string | null; metadata?: Record<string, unknown>; createdAt: string; startedAt: string | null; completedAt: string | null;
 };
-export type WorkflowEvent = {
-  id: string;
-  runId: string;
-  sequence: number;
-  nodeKey: string;
-  eventType: string;
-  status: "queued" | "running" | "succeeded" | "failed" | "skipped";
-  message: string;
-  agentRunId: string | null;
-  payload: Record<string, unknown>;
-  occurredAt: string;
-};
-export type WorkflowArtifact = {
-  id: string;
-  runId: string;
-  nodeKey: string;
-  artifactType: string;
-  artifactId: string;
-  title: string;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-};
-export type WorkflowRunDetail = WorkflowRun & {
-  events: WorkflowEvent[];
-  artifacts: WorkflowArtifact[];
-};
-export type CreateWorkflowRunRequest = {
-  sourceIds?: string[];
-  metadata?: Record<string, unknown>;
-};
+export type WorkflowEvent = { id: string; runId: string; sequence: number; nodeKey: string; eventType: string; status: string; message: string; agentRunId: string | null; payload: Record<string, unknown>; occurredAt: string };
+export type WorkflowArtifact = { id: string; runId: string; nodeKey: string; artifactType: string; artifactId: string; title: string; metadata: Record<string, unknown>; createdAt: string };
+export type WorkflowNodeRun = { id: string; runId: string; nodeKey: string; status: string; inputSnapshotId: string | null; outputSnapshotId: string | null; configSnapshot: Record<string, unknown>; counts: Record<string, unknown>; createdAt: string; startedAt: string | null; completedAt: string | null };
+export type WorkflowItemDecision = { id: string; runId: string; nodeRunId: string; itemId: string; itemType: string; decision: string; reasonCode: string; reason: string; totalScore: number | null; createdAt: string };
+export type WorkflowRunDetail = WorkflowRun & { events: WorkflowEvent[]; artifacts: WorkflowArtifact[]; nodeRuns: WorkflowNodeRun[]; decisions: WorkflowItemDecision[] };
+export type CreateWorkflowRunRequest = { sourceIds?: string[]; metadata?: Record<string, unknown> };
 
 export type PipelineStageSummary = {
   key: "source_fetch" | "topic_scout" | "article_write";
@@ -248,6 +219,18 @@ export const api = {
       body: JSON.stringify(input),
     }),
   getWorkflowRun: (id: string) => request<WorkflowRunDetail>(`/v1/workflow/runs/${id}`),
+  listWorkflowNodeDecisions: (id: string, nodeKey: string, decision?: string) =>
+    request<WorkflowItemDecision[]>(`/v1/workflow/runs/${id}/nodes/${nodeKey}/decisions${decision ? `?decision=${decision}` : ""}`),
+  replayWorkflowRun: (id: string, replayFromNode: string, replayScope: Record<string, unknown>, reason?: string) =>
+    request<WorkflowRun>(`/v1/workflow/runs/${id}/replay`, {
+      method: "POST",
+      body: JSON.stringify({ replayFromNode, replayScope, ...(reason ? { reason } : {}) }),
+    }),
+  compareWorkflowRuns: (id: string, otherRunId: string) =>
+    request<{ baseRunId: string; otherRunId: string; sameInput: boolean; stages: Record<string, unknown>; reasonCounts: Record<string, unknown> }>(`/v1/workflow/runs/${id}/compare`, {
+      method: "POST",
+      body: JSON.stringify({ otherRunId }),
+    }),
   listWorkflowEvents: (id: string, after = 0) =>
     request<WorkflowEvent[]>(`/v1/workflow/runs/${id}/events?after=${after}`),
   workflowStreamUrl: (id: string) => `${BASE}/v1/workflow/runs/${id}/stream`,
