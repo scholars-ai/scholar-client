@@ -335,9 +335,10 @@ export default function WorkflowCanvas() {
         {runs.length === 0 ? <div className="workflow-run-list-empty"><Clock3 size={18} />还没有运行记录。</div> : <div className="workflow-run-items">{runs.map((run) => {
           const funnel = summaryRecord(run.summary, "funnel");
           const total = summaryRecord(run.summary, "total");
+          const observability = summaryRecord(run.summary, "observability");
           const recentFailureNode = run.summary?.recentFailureNode;
           return <button key={run.id} className={`workflow-run-item${run.id === selectedRunId ? " is-selected" : ""}`} onClick={() => setSelectedRunId(run.id)}>
-            <span className="workflow-run-item-main"><strong>{formatTime(run.createdAt)}</strong><span>{triggerLabel(run)} · {run.status}{run.parentRunId ? " · 子运行" : ""}</span></span>
+            <span className="workflow-run-item-main"><strong>{formatTime(run.createdAt)}</strong><span>{triggerLabel(run)} · {run.status}{run.parentRunId ? " · 子运行" : ""}</span>{observability?.missing === true && <span className="workflow-run-observability"><CircleAlert size={12} />观测缺失</span>}</span>
             <span className="workflow-run-item-stages">{RUN_STAGE_LABELS.map(([key, label]) => { const stage = funnel?.[key]; return <span key={key} title={`${label}输入 / 通过 / 拒绝 / 失败`}><b>{label}</b>{summaryNumber(stage, "input")} / {summaryNumber(stage, "accepted")} / {summaryNumber(stage, "rejected")} / {summaryNumber(stage, "failed")}</span>; })}</span>
             <span className="workflow-run-item-total"><span>产物 <b>{summaryNumber(total, "artifactCount")}</b></span><span>耗时 <b>{summaryNumber(total, "durationSeconds").toFixed(1)}s</b></span><span>成本 <b>{total && typeof total.costUsd === "number" ? `$${total.costUsd.toFixed(4)}` : "-"}</b></span>{typeof recentFailureNode === "string" && recentFailureNode && <span className="workflow-run-failure"><CircleAlert size={12} />{recentFailureNode}</span>}</span>
           </button>;
