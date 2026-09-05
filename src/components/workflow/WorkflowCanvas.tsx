@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Background,
   Controls,
@@ -13,7 +14,7 @@ import {
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import { Activity, Bot, Check, CircleAlert, Clock3, LoaderCircle, Play, Radio, RefreshCw, X } from "lucide-react";
+import { Activity, ArrowLeft, Bot, Check, CircleAlert, Clock3, LoaderCircle, Play, Radio, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { api, type ReplayMode, type WorkflowArtifact, type WorkflowConfigOverrides, type WorkflowEvent, type WorkflowItemDecision, type WorkflowNodeRun, type WorkflowRun, type WorkflowRunComparison, type WorkflowSnapshot } from "@/lib/api";
@@ -26,6 +27,11 @@ type WorkflowNodeData = {
   state: NodeState;
   event?: WorkflowEvent;
   artifacts: WorkflowArtifact[];
+};
+
+type WorkflowCanvasProps = {
+  initialRunId?: string;
+  detailOnly?: boolean;
 };
 
 const NODE_ORDER = [
@@ -150,7 +156,110 @@ function artifactHref(artifact: WorkflowArtifact) {
   return "/sources";
 }
 
-export default function WorkflowCanvas() {
+function NodeExecutionModal({
+  node,
+  events,
+  nodeRun,
+  decisions,
+  artifacts,
+  inputSnapshot,
+  outputSnapshot,
+  loading,
+  snapshotError,
+  replayMode,
+  selectedItemIds,
+  overrideModel,
+  overrideThreshold,
+  onReplayModeChange,
+  onToggleItem,
+  onOverrideModelChange,
+  onOverrideThresholdChange,
+  onReplay,
+  onClose,
+}: {
+  node: (typeof NODE_ORDER)[number];
+  events: WorkflowEvent[];
+  nodeRun?: WorkflowNodeRun;
+  decisions: WorkflowItemDecision[];
+  artifacts: WorkflowArtifact[];
+  inputSnapshot?: WorkflowSnapshot;
+  outputSnapshot?: WorkflowSnapshot;
+  loading: boolean;
+  snapshotError?: string;
+  replayMode: ReplayMode;
+  selectedItemIds: string[];
+  overrideModel: string;
+  overrideThreshold: string;
+  onReplayModeChange: (mode: ReplayMode) => void;
+  onToggleItem: (itemId: string) => void;
+  onOverrideModelChange: (value: string) => void;
+  onOverrideThresholdChange: (value: string) => void;
+  onReplay: () => void;
+  onClose: () => void;
+}) {
+  const event = events.at(-1);
+
+  useEffect(() => {
+    const onKeyDown = (keyboardEvent: KeyboardEvent) => {
+      if (keyboardEvent.key === "Escape") onClose();
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="workflow-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="workflow-modal" role="dialog" aria-modal="true" aria-labelledby="workflow-modal-title">
+        <div className="workflow-modal-header">
+          <div><span className="section-kicker">NODE EXECUTION</span><h2 id="workflow-modal-title">{node.label}</h2><p>{node.description}</p></div>
+          <button className="workflow-modal-close" onClick={onClose} aria-label="关闭节点执行记录"><X size={18} /></button>
+        </div>
+        <div className="workflow-modal-summary">
+          <span className={`status status-${event?.status ?? "idle"}`}>{event?.status ?? "idle"}</span>
+          <span>{event?.message ?? "尚未执行"}</span>
+          <time>{formatTime(event?.occurredAt)}</time>
+        </div>
+        <div className="workflow-modal-grid">
+          <div><span className="workflow-modal-label">节点运行</span><code>{nodeRun?.id ?? "-"}</code></div>
+          <div><span className="workflow-modal-label">开始 / 完成</span><span>{formatTime(nodeRun?.startedAt)} / {formatTime(nodeRun?.completedAt)}</span></div>
+          <div><span className="workflow-modal-label">输入快照</span><code>{nodeRun?.inputSnapshotId ?? "-"}</code></div>
+          <div><span className="workflow-modal-label">输出快照</span><code>{nodeRun?.outputSnapshotId ?? "-"}</code></div>
+          <div><span className="workflow-modal-label">漏斗统计</span><span>{nodeRun?.counts ? Object.entries(nodeRun.counts).map(([key, value]) => `${key}: ${String(value)}`).join(" · ") : "-"}</span></div>
+        </div>
+        {node.key !== "trigger" && <div className="workflow-modal-replay">
+          <div className="workflow-modal-section-heading"><span>从此节点重新运行</span><strong>沿用本次输入快照</strong></div>
+          <div className="workflow-control-row">
+            <label>重跑范围<select value={replayMode} onChange={(event) => onReplayModeChange(event.target.value as ReplayMode)}>
+              <option value="full">当前节点及后续</option>
+              <option value="failed_items">仅失败项</option>
+              <option value="selected_items">选择条目</option>
+              <option value="evaluate_only">只重新评估</option>
+            </select></label>
+            <label>模型覆盖<input value={overrideModel} onChange={(event) => onOverrideModelChange(event.target.value)} placeholder="沿用默认模型" /></label>
+            <label>通过阈值<input type="number" min="0" max="100" value={overrideThreshold} onChange={(event) => onOverrideThresholdChange(event.target.value)} placeholder="沿用默认阈值" /></label>
+            <button className="button button-primary workflow-modal-replay-button" onClick={onReplay}><RefreshCw size={14} />执行 replay</button>
+          </div>
+        </div>}
+        {snapshotError ? <div className="workflow-modal-error"><CircleAlert size={15} />{snapshotError}</div> : loading ? <div className="workflow-modal-loading"><LoaderCircle size={18} className="spin" />正在读取快照...</div> : <div className="workflow-modal-columns">
+          <div><div className="workflow-modal-label">输入</div>{inputSnapshot ? <pre>{JSON.stringify(inputSnapshot.payload, null, 2)}</pre> : <span className="muted">无输入快照</span>}</div>
+          <div><div className="workflow-modal-label">输出</div>{outputSnapshot ? <pre>{JSON.stringify(outputSnapshot.payload, null, 2)}</pre> : <span className="muted">无输出快照</span>}</div>
+        </div>}
+        <div className="workflow-modal-section"><div className="workflow-modal-section-heading"><span>节点配置</span><strong>执行时固化</strong></div>{nodeRun && Object.keys(nodeRun.configSnapshot).length > 0 ? <pre className="workflow-modal-config">{JSON.stringify(nodeRun.configSnapshot, null, 2)}</pre> : <span className="muted">暂无节点配置快照</span>}</div>
+        <div className="workflow-modal-section"><div className="workflow-modal-section-heading"><span>事件记录</span><strong>{events.length}</strong></div>{events.length === 0 ? <span className="muted">暂无事件</span> : <div className="workflow-modal-event-list">{[...events].reverse().map((item) => <details key={item.id}><summary><span className={`timeline-marker timeline-${item.status}`}>{item.status === "succeeded" ? <Check size={13} /> : item.status === "failed" ? <CircleAlert size={13} /> : item.status === "running" ? <LoaderCircle size={13} className="spin" /> : <Clock3 size={13} />}</span><span><strong>{item.message}</strong><small>{item.eventType} · {formatTime(item.occurredAt)}</small></span></summary><pre>{JSON.stringify(item.payload, null, 2)}</pre></details>)}</div>}</div>
+        <div className="workflow-modal-section"><div className="workflow-modal-section-heading"><span>逐条决策</span><strong>{decisions.length}</strong></div>{decisions.length === 0 ? <span className="muted">暂无逐条决策</span> : <div className="workflow-modal-decision-list">{decisions.map((decision) => <label key={decision.id}><input type="checkbox" checked={selectedItemIds.includes(decision.itemId)} onChange={() => onToggleItem(decision.itemId)} /><span><strong>{decision.decision} · {decision.reasonCode}</strong><small>{decision.reason}</small></span><b>{decision.totalScore ?? "-"}</b></label>)}</div>}</div>
+        <div className="workflow-modal-section"><div className="workflow-modal-section-heading"><span>节点产物</span><strong>{artifacts.length}</strong></div>{artifacts.length === 0 ? <span className="muted">暂无产物</span> : <div className="workflow-modal-artifacts">{artifacts.map((artifact) => <Link key={artifact.id} href={artifactHref(artifact)} onClick={onClose}>{artifact.title || artifact.artifactType} ↗</Link>)}</div>}</div>
+      </section>
+    </div>
+  );
+}
+
+export default function WorkflowCanvas({ initialRunId, detailOnly = false }: WorkflowCanvasProps) {
+  const router = useRouter();
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string>();
   const [events, setEvents] = useState<WorkflowEvent[]>([]);
@@ -174,15 +283,17 @@ export default function WorkflowCanvas() {
   const [configSnapshot, setConfigSnapshot] = useState<WorkflowSnapshot>();
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
   const [snapshotError, setSnapshotError] = useState<string>();
+  const [nodeModalOpen, setNodeModalOpen] = useState(false);
 
   const loadRuns = useCallback(async () => {
     const result = await api.listWorkflowRuns();
     setRuns(result.items);
-    if (!selectedRunId && result.items[0]) setSelectedRunId(result.items[0].id);
-  }, [selectedRunId]);
+    setSelectedRunId((current) => current ?? initialRunId ?? result.items[0]?.id);
+  }, [initialRunId]);
 
   const loadRun = useCallback(async (id: string) => {
     const result = await api.getWorkflowRun(id);
+    setRuns((current) => [result, ...current.filter((item) => item.id !== result.id)]);
     setEvents(result.events);
     setArtifacts(result.artifacts);
     setNodeRuns(result.nodeRuns);
@@ -196,6 +307,11 @@ export default function WorkflowCanvas() {
   useEffect(() => {
     if (!selectedRunId) return;
     setError(undefined);
+    setEvents([]);
+    setArtifacts([]);
+    setNodeRuns([]);
+    setDecisions([]);
+    setNodeModalOpen(false);
     loadRun(selectedRunId).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "无法读取运行详情"));
     const source = new EventSource(api.workflowStreamUrl(selectedRunId));
     source.onopen = () => setConnection("live");
@@ -257,6 +373,7 @@ export default function WorkflowCanvas() {
       setRuns((current) => [run, ...current.filter((item) => item.id !== run.id)]);
       setSelectedRunId(run.id);
       setSelectedNode("source_fetch");
+      setNodeModalOpen(false);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "无法启动工作流");
     } finally {
@@ -287,6 +404,8 @@ export default function WorkflowCanvas() {
       setRuns((current) => [run, ...current.filter((item) => item.id !== run.id)]);
       setSelectedRunId(run.id);
       setComparison(undefined);
+      setNodeModalOpen(false);
+      if (detailOnly) router.push(`/workflow/${run.id}`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "无法创建 replay 运行");
     }
@@ -336,54 +455,67 @@ export default function WorkflowCanvas() {
   }), [events]);
 
   const inspectorEvent = latestEvent(events, selectedNode);
+  const inspectorEvents = events.filter((item) => item.nodeKey === selectedNode);
   const inspectorArtifacts = artifacts.filter((item) => item.nodeKey === selectedNode);
   const inspectorNodeRun = nodeRuns.find((item) => item.nodeKey === selectedNode);
   const inspectorDecisions = decisions.filter((item) => item.nodeRunId === inspectorNodeRun?.id);
+  const selectedRun = runs.find((run) => run.id === selectedRunId);
+  const closeNodeModal = useCallback(() => setNodeModalOpen(false), []);
 
   return (
-    <main className="workflow-page">
+    <main className={`workflow-page${detailOnly ? " workflow-page-detail" : ""}`}>
       <header className="workflow-header">
-        <div>
-          <div className="eyebrow">SCHOLARS AI / WORKFLOW CONTROL</div>
-          <h1>内容生产工作流</h1>
-          <p>从资讯采集到可发布文章，每一步都留下可追踪的 Agent 记录。</p>
-        </div>
-        <div className="workflow-actions">
-          <button className="button button-primary workflow-trigger" disabled={triggering} onClick={trigger}>
-            {triggering ? <LoaderCircle size={16} className="spin" /> : <Play size={16} />}
-            启动一次采集
-          </button>
-        </div>
+        {detailOnly ? <>
+          <div className="workflow-detail-heading">
+            <Link className="workflow-back-link" href="/"><ArrowLeft size={16} />返回任务列表</Link>
+            <div className="eyebrow">WORKFLOW RUN / {selectedRunId?.slice(0, 8) ?? "-"}</div>
+            <h1>运行画布</h1>
+            <p>{selectedRun ? `${formatTime(selectedRun.createdAt)} · ${triggerLabel(selectedRun)}触发 · ${selectedRun.status}` : "正在读取运行信息..."}</p>
+          </div>
+          <div className="workflow-actions"><button className="button button-quiet workflow-detail-refresh" disabled={!selectedRunId} onClick={() => selectedRunId && loadRun(selectedRunId)}><RefreshCw size={15} />刷新运行</button></div>
+        </> : <>
+          <div>
+            <div className="eyebrow">SCHOLARS AI / WORKFLOW CONTROL</div>
+            <h1>内容生产工作流</h1>
+            <p>从资讯采集到可发布文章，每一步都留下可追踪的 Agent 记录。</p>
+          </div>
+          <div className="workflow-actions">
+            <button className="button button-primary workflow-trigger" disabled={triggering} onClick={trigger}>
+              {triggering ? <LoaderCircle size={16} className="spin" /> : <Play size={16} />}
+              启动一次采集
+            </button>
+          </div>
+        </>}
       </header>
 
       {error && <div className="workflow-alert"><CircleAlert size={16} />{error}<button onClick={() => setError(undefined)} aria-label="关闭提示"><X size={15} /></button></div>}
 
-      <section className="workflow-run-list" aria-label="工作流任务列表">
+      {!detailOnly && <section className="workflow-run-list" aria-label="工作流任务列表">
         <div className="workflow-section-heading"><div><span className="section-kicker">RUN HISTORY</span><h2>任务列表</h2></div><span className="muted">{runs.length} 次运行</span></div>
         {runs.length === 0 ? <div className="workflow-run-list-empty"><Clock3 size={18} />还没有运行记录。</div> : <div className="workflow-run-items">{runs.map((run) => {
           const funnel = summaryRecord(run.summary, "funnel");
           const total = summaryRecord(run.summary, "total");
           const observability = summaryRecord(run.summary, "observability");
           const recentFailureNode = run.summary?.recentFailureNode;
-          return <button key={run.id} className={`workflow-run-item${run.id === selectedRunId ? " is-selected" : ""}`} onClick={() => setSelectedRunId(run.id)}>
+          return <Link href={`/workflow/${run.id}`} key={run.id} className={`workflow-run-item${run.id === selectedRunId ? " is-selected" : ""}`} onClick={() => { setSelectedRunId(run.id); setNodeModalOpen(false); }}>
             <span className="workflow-run-item-main"><strong>{formatTime(run.createdAt)}</strong><span>{triggerLabel(run)} · {run.status}{run.parentRunId ? " · 子运行" : ""}</span>{observability?.missing === true && <span className="workflow-run-observability"><CircleAlert size={12} />观测缺失</span>}</span>
             <span className="workflow-run-item-stages">{RUN_STAGE_LABELS.map(([key, label]) => { const stage = funnel?.[key]; return <span key={key} title={`${label}输入 / 通过 / 拒绝 / 失败`}><b>{label}</b>{summaryNumber(stage, "input")} / {summaryNumber(stage, "accepted")} / {summaryNumber(stage, "rejected")} / {summaryNumber(stage, "failed")}</span>; })}</span>
             <span className="workflow-run-item-total"><span>产物 <b>{summaryNumber(total, "artifactCount")}</b></span><span>耗时 <b>{summaryNumber(total, "durationSeconds").toFixed(1)}s</b></span><span>成本 <b>{total && typeof total.costUsd === "number" ? `$${total.costUsd.toFixed(4)}` : "-"}</b></span>{typeof recentFailureNode === "string" && recentFailureNode && <span className="workflow-run-failure"><CircleAlert size={12} />{recentFailureNode}</span>}</span>
-          </button>;
+          </Link>;
         })}</div>}
-      </section>
+      </section>}
 
-      <section className="workflow-stage-band">
+      <section className={`workflow-stage-band${detailOnly ? " workflow-stage-band-detail" : ""}`}>
         <div className="workflow-stage-heading">
           <div><span className="section-kicker">LIVE GRAPH</span><h2>运行画布</h2></div>
           <span className={`connection-state connection-${connection}`}><Radio size={14} />{connection === "live" ? "实时连接" : connection === "reconnecting" ? "正在重连" : "未连接"}</span>
         </div>
         <div className="workflow-graph-shell">
-          {loading ? <div className="workflow-loading"><LoaderCircle className="spin" size={22} />正在读取运行记录</div> : selectedRunId ? <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.18 }} onNodeClick={(_, node) => setSelectedNode(node.id)} proOptions={{ hideAttribution: true }}><Background color="#e5e8e9" gap={24} size={1} /><Controls showInteractive={false} /><MiniMap nodeColor={(node) => node.data?.state === "running" ? "#d55c3e" : "#b8c0c4"} /></ReactFlow> : <div className="workflow-empty"><Activity size={24} /><strong>还没有运行记录</strong><span>点击“启动一次采集”，开始观察第一条内容生产链。</span></div>}
+          {loading ? <div className="workflow-loading"><LoaderCircle className="spin" size={22} />正在读取运行记录</div> : selectedRunId ? <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.18 }} onNodeClick={(_, node) => { setSelectedNode(node.id); setNodeModalOpen(true); }} proOptions={{ hideAttribution: true }}><Background color="#e5e8e9" gap={24} size={1} /><Controls showInteractive={false} /><MiniMap nodeColor={(node) => node.data?.state === "running" ? "#d55c3e" : "#b8c0c4"} /></ReactFlow> : <div className="workflow-empty"><Activity size={24} /><strong>还没有运行记录</strong><span>点击“启动一次采集”，开始观察第一条内容生产链。</span></div>}
         </div>
       </section>
 
-      <section className="workflow-lower-grid">
+      {!detailOnly && <section className="workflow-lower-grid">
         <aside className="workflow-inspector">
           <div className="workflow-section-heading"><div><span className="section-kicker">NODE INSPECTOR</span><h2>{NODE_ORDER.find((item) => item.key === selectedNode)?.label}</h2></div><span className={`status status-${nodeState(events, selectedNode)}`}>{nodeState(events, selectedNode)}</span></div>
           <p className="workflow-description">{NODE_ORDER.find((item) => item.key === selectedNode)?.description}</p>
@@ -421,9 +553,9 @@ export default function WorkflowCanvas() {
           <div className="workflow-section-heading"><div><span className="section-kicker">RUN TIMELINE</span><h2>执行记录</h2></div><span className="muted">{events.length} 个事件</span></div>
           {events.length === 0 ? <div className="workflow-timeline-empty"><Clock3 size={18} />选择运行后，事件会按发生顺序显示。</div> : <div className="timeline-list">{[...events].reverse().map((event) => <button key={event.id} className={`timeline-item timeline-${event.status}`} onClick={() => setSelectedNode(event.nodeKey)}><span className="timeline-marker">{event.status === "succeeded" ? <Check size={13} /> : event.status === "failed" ? <CircleAlert size={13} /> : event.status === "running" ? <LoaderCircle size={13} className="spin" /> : <Clock3 size={13} />}</span><span className="timeline-copy"><strong>{NODE_ORDER.find((item) => item.key === event.nodeKey)?.label ?? event.nodeKey}</strong><span>{event.message}</span></span><time>{formatTime(event.occurredAt)}</time></button>)}</div>}
         </section>
-      </section>
+      </section>}
 
-      {selectedRunId && runs.length > 1 && <section className="workflow-compare">
+      {!detailOnly && selectedRunId && runs.length > 1 && <section className="workflow-compare">
         <div className="workflow-section-heading"><div><span className="section-kicker">RUN COMPARE</span><h2>运行对比</h2></div><span className="muted">比较漏斗、原因和产物变化</span></div>
         <div className="workflow-compare-controls">
           <select value={comparisonRunId} onChange={(event) => setComparisonRunId(event.target.value)}>
@@ -445,6 +577,7 @@ export default function WorkflowCanvas() {
       </section>}
 
       {selectedRunId && <footer className="workflow-footer"><span>运行 ID <code>{selectedRunId}</code></span><button className="button button-quiet" onClick={() => loadRun(selectedRunId)}><RefreshCw size={14} />刷新</button></footer>}
+      {nodeModalOpen && <NodeExecutionModal node={NODE_ORDER.find((item) => item.key === selectedNode) ?? NODE_ORDER[1]} events={inspectorEvents} nodeRun={inspectorNodeRun} decisions={inspectorDecisions} artifacts={inspectorArtifacts} inputSnapshot={inputSnapshot} outputSnapshot={outputSnapshot} loading={snapshotsLoading} snapshotError={snapshotError} replayMode={replayMode} selectedItemIds={selectedItemIds} overrideModel={overrideModel} overrideThreshold={overrideThreshold} onReplayModeChange={(mode) => { setReplayMode(mode); setSelectedItemIds([]); }} onToggleItem={toggleItem} onOverrideModelChange={setOverrideModel} onOverrideThresholdChange={setOverrideThreshold} onReplay={replay} onClose={closeNodeModal} />}
     </main>
   );
 }
